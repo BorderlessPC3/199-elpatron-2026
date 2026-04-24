@@ -1,0 +1,41 @@
+.page-transition {
+  width: 100%;
+  position: relative;
+  opacity: 1;
+  transform: translateX(0);
+  filter: blur(0);
+  transition:
+    opacity 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    filter 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.page-transition.animating {
+  opacity: 0;
+  transform: translateX(-30px);
+  filter: blur(2px);
+  will-change: transform, opacity, filter;
+}
+
+.page-transition.entering {
+  opacity: 0;
+  transform: translateX(30px);
+  filter: blur(2px);
+  will-change: transform, opacity, filter;
+}
+
+.page-transition.entered {
+  opacity: 1;
+  transform: translateX(0);
+  filter: blur(0);
+}
+
+@media (max-width: 768px) {
+  .page-transition.animating {
+    transform: translateX(-20px);
+  }
+
+  .page-transition.entering {
+    transform: translateX(20px);
+  }
+}

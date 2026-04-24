@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Perfil: users/{userId}
+    match /users/{userId} {
+      allow read, create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    // Preferências: users/{userId}/settings/{docId}
+    match /users/{userId}/settings/{docId} {
+      allow read, create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    // clients/{userId}/items/{clientId}
+    match /clients/{userId}/items/{clientId} {
+      function validClient() {
+        return request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.userId == userId;
+      }
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validClient();
+      allow update: if isOwner(userId) && validClient();
+      allow delete: if isOwner(userId);
+    }
+
+    // loans (empréstimos): loans/{userId}/items/{loanId}
+    match /loans/{userId}/items/{loanId} {
+      function validLoan() {
+        return request.resource.data.loanAmount is number
+          && request.resource.data.loanAmount > 0
+          && request.resource.data.userId == userId;
+      }
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validLoan();
+      allow update: if isOwner(userId) && validLoan();
+      allow delete: if isOwner(userId);
+    }
+
+    // agenda: agenda/{userId}/items/{taskId}
+    match /agenda/{userId}/items/{taskId} {
+      allow read, create, update, delete: if isOwner(userId);
+    }
+
+    // Apenas o backend (Admin SDK) grava; clientes não
+    match /notificationLogs/{id} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

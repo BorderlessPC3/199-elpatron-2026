@@ -1,0 +1,131 @@
+.notifications-page {
+  min-height: 100%;
+  background: var(--color-background);
+  max-width: 720px;
+}
+
+.notifications-page-header {
+  margin-bottom: 20px;
+}
+
+.notifications-page-header h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.notifications-page-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-textSecondary);
+}
+
+.notifications-page-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.notifications-list-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.notifications-list-page .notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--color-borderLight);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.notifications-list-page .notification-item:last-child {
+  border-bottom: none;
+}
+
+.notifications-list-page .notification-item:hover {
+  background: var(--color-background);
+}
+
+.notifications-list-page .notification-item.read {
+  opacity: 0.72;
+}
+
+.notifications-list-page .notification-item.unread {
+  background: var(--color-background);
+  border-left: 4px solid var(--color-primary);
+  padding-left: 14px;
+}
+
+.notifications-list-page .notification-icon {
+  font-size: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.notifications-list-page .notification-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notifications-list-page .notification-content h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 4px 0;
+}
+
+.notifications-list-page .notification-content p {
+  font-size: 13px;
+  color: var(--color-textSecondary);
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.notifications-list-page .notification-time {
+  font-size: 12px;
+  color: var(--color-textSecondary);
+}
+
+.notifications-list-page .notification-action {
+  padding: 6px 12px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.notifications-list-page .notification-action:hover {
+  background: var(--color-primaryDark);
+  transform: translateY(-1px);
+}
+
+.notifications-list-page .no-notifications {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--color-textSecondary);
+}
+
+.notifications-list-page .no-notifications p {
+  font-size: 14px;
+  margin: 0;
+}

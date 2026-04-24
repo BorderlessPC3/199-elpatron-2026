@@ -1,0 +1,9 @@
+export { default as AgendaPage } from "./Agenda";
+export { default as ClientsPage } from "./Clients";
+export { default as DashboardPage } from "./Dashboard";
+export { default as LoadingPage } from "./LoadingPage";
+export { default as LoginPage } from "./Login";
+export { default as NotificationsPage } from "./Notifications";
+export { default as PaymentsPage } from "./Payments";
+export { default as ReportsPage } from "./Reports/ReportsPage";
+export { default as SettingsPage } from "./Settings";

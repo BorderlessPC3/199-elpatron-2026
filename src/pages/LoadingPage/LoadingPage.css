@@ -1,0 +1,49 @@
+.loading-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 50px;
+  overflow: hidden;
+  z-index: 9999;
+  /* Adicionar transições suaves */
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.loading-page.fade-in {
+  opacity: 1;
+  visibility: visible;
+}
+
+.loading-page.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.loading-animation {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Adicionar transição suave */
+  transition: opacity 0.2s ease;
+}
+
+.loading-message {
+  position: relative;
+  z-index: 10;
+  color: var(--color-text);
+  font-size: 24px;
+  font-weight: 600;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(45, 27, 105, 0.3);
+  /* Adicionar transição suave */
+  transition: opacity 0.2s ease;
+} 

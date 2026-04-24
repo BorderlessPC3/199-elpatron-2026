@@ -1,0 +1,65 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  color: #333;
+  background-color: #fff;
+  /* Otimizações para transições suaves */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Evita promover muitos elementos para GPU sem necessidade */
+
+/* CSS Custom Properties para temas */
+:root {
+  /* Paleta padrão (estilo financeiro) */
+  --color-primary: #1f4e79;
+  --color-primaryLight: #2f6f9f;
+  --color-primaryDark: #143652;
+  --color-secondary: #274f6d;
+  --color-secondaryLight: #3f6f94;
+  --color-secondaryDark: #1b3952;
+  --color-accent: #b89b59;
+  --color-accentLight: #ceb67e;
+  --color-accentDark: #927a45;
+  --gradient-primary: linear-gradient(135deg, #10283f 0%, #1f4e79 100%);
+  --gradient-light: linear-gradient(135deg, #2f6f9f 0%, #5d8fb8 100%);
+  --gradient-dark: linear-gradient(135deg, #0d2235 0%, #143652 100%);
+  --color-background: #eef2f6;
+  --color-surface: #ffffff;
+  --color-text: #0f172a;
+  --color-textSecondary: #4b5563;
+  --color-border: #d7dee7;
+  --color-borderLight: #e7edf4;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  
+  /* Variáveis para animações de tema */
+  --theme-hue-rotate: 0deg;
+  /* Variável para modo escuro/claro */
+  --theme-mode: light;
+  /* Variável para modo meia noite */
+  --theme-midnight: false;
+}
