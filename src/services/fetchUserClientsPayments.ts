@@ -3,10 +3,12 @@ import { clientsItemsCollection, loansItemsCollection } from "./firestorePaths";
 import type { Client } from "../types/client";
 import type { Payment } from "../types/payment";
 import { normalizePayment } from "../utils/paymentNormalizer";
+import { requireAuthPathUid } from "./requireAuthPathUid";
 
 export async function fetchUserClientsPayments(
   userId: string,
 ): Promise<{ clients: Client[]; payments: Payment[] }> {
+  requireAuthPathUid(userId);
   const clientsRef = clientsItemsCollection(userId);
   const clientsQuery = query(
     clientsRef,

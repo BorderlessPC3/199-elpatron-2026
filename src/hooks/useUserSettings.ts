@@ -2,6 +2,7 @@ import { onSnapshot, type Unsubscribe } from "firebase/firestore";
 import { useCallback, useEffect, useState } from "react";
 import { userSettingsDocument } from "../services/firestorePaths";
 import { getUserSettings, setUserSettings } from "../services/userSettingsService";
+import { getErrorMessage } from "../utils/error";
 import {
   defaultUserSettings,
   type UserSettings,
@@ -40,7 +41,7 @@ export function useUserSettings(userId: string | undefined) {
         setError("");
       },
       (err) => {
-        setError(err.message);
+        setError(getErrorMessage(err, "Erro ao carregar preferências."));
         setLoading(false);
       },
     );
@@ -50,7 +51,12 @@ export function useUserSettings(userId: string | undefined) {
   const save = useCallback(
     async (partial: Partial<UserSettings>) => {
       if (!userId) return;
-      await setUserSettings(userId, partial);
+      try {
+        setError("");
+        await setUserSettings(userId, partial);
+      } catch (e: unknown) {
+        setError(getErrorMessage(e, "Erro ao salvar preferências."));
+      }
     },
     [userId],
   );
@@ -62,7 +68,7 @@ export function useUserSettings(userId: string | undefined) {
       const s = await getUserSettings(userId);
       setSettings(s);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Erro ao carregar");
+      setError(getErrorMessage(e, "Erro ao carregar"));
     } finally {
       setLoading(false);
     }

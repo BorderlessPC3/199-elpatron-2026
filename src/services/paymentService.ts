@@ -10,6 +10,7 @@ import { clientsItemsCollection, loanDocument, loansItemsCollection } from "./fi
 import type { Payment, PaymentInstallment, PaymentStatus } from "../types/payment";
 import type { Client } from "../types/client";
 import { normalizePayment, formatInputDate } from "../utils/paymentNormalizer";
+import { requireAuthPathUid } from "./requireAuthPathUid";
 
 export type PaymentSaveInput = Omit<
   Payment,
@@ -17,6 +18,7 @@ export type PaymentSaveInput = Omit<
 >;
 
 export async function fetchPaymentsByUser(userId: string): Promise<Payment[]> {
+  requireAuthPathUid(userId);
   const paymentsRef = loansItemsCollection(userId);
   const q = query(paymentsRef, orderBy("createdAt", "desc"));
   const snapshot = await getDocs(q);
@@ -30,6 +32,7 @@ export async function savePayment(
   paymentData: PaymentSaveInput,
   editingPaymentId?: string,
 ): Promise<void> {
+  requireAuthPathUid(userId);
   const normalizedData = {
     ...paymentData,
     date: paymentData.firstReceiveDate,
@@ -58,6 +61,7 @@ export async function savePayment(
 }
 
 export async function deletePayment(userId: string, id: string): Promise<void> {
+  requireAuthPathUid(userId);
   await deleteDoc(loanDocument(userId, id));
 }
 
@@ -67,8 +71,12 @@ export async function updatePaymentInstallments(
   installments: PaymentInstallment[],
   status: PaymentStatus,
 ): Promise<void> {
+  requireAuthPathUid(userId);
+  const amount = installments.reduce((sum, installment) => sum + installment.amount, 0);
   await updateDoc(loanDocument(userId, id), {
     installments,
+    installmentCount: installments.length,
+    amount,
     status,
     updatedAt: new Date(),
   });
@@ -80,6 +88,7 @@ export async function ensureClientExistsForPayment(
   paymentData: PaymentSaveInput,
   clients: Client[],
 ): Promise<void> {
+  requireAuthPathUid(userId);
   const normalizedClientName = paymentData.clientName.trim().toLowerCase();
   const normalizedClientEmail = paymentData.clientEmail.trim().toLowerCase();
   const clientAlreadyExists = clients.some((client) => {

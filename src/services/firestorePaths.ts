@@ -43,3 +43,8 @@ export function userSettingsDocument(userId: string): DocumentReference {
 export function userProfileDocument(userId: string): DocumentReference {
   return doc(db, "users", userId);
 }
+
+/** settings/{userId} — configurações gerais (empresa, backup) */
+export function tenantAppSettingsDocument(userId: string): DocumentReference {
+  return doc(db, "settings", userId);
+}

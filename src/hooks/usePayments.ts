@@ -79,7 +79,14 @@ export function usePayments() {
       installments: Parameters<typeof updatePaymentInstallments>[2],
       status: Parameters<typeof updatePaymentInstallments>[3],
     ) => {
-      await updatePaymentInstallments(userId, id, installments, status);
+      try {
+        setError("");
+        await updatePaymentInstallments(userId, id, installments, status);
+      } catch (err: unknown) {
+        const message = getErrorMessage(err);
+        setError(`Erro ao atualizar parcelas: ${message}`);
+        throw new Error(message);
+      }
     },
     [],
   );

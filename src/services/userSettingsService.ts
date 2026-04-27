@@ -4,6 +4,7 @@ import {
   type UserSettings,
 } from "../types/userSettings";
 import { userSettingsDocument } from "./firestorePaths";
+import { requireAuthPathUid } from "./requireAuthPathUid";
 
 const mergeDefaults = (data: Partial<UserSettings>): UserSettings => ({
   ...defaultUserSettings,
@@ -13,6 +14,7 @@ const mergeDefaults = (data: Partial<UserSettings>): UserSettings => ({
 });
 
 export async function getUserSettings(userId: string): Promise<UserSettings> {
+  requireAuthPathUid(userId);
   const ref = userSettingsDocument(userId);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
@@ -25,6 +27,7 @@ export async function setUserSettings(
   userId: string,
   partial: Partial<UserSettings>,
 ): Promise<void> {
+  requireAuthPathUid(userId);
   const current = await getUserSettings(userId);
   const next: UserSettings = { ...current, ...partial };
   await setDoc(userSettingsDocument(userId), next, { merge: true });

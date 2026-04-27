@@ -17,18 +17,19 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Footer } from "borderless";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  setDoc,
-} from "firebase/firestore";
+import { doc, getDoc, getDocs, query, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { db } from "../../services/firebase.config";
+import {
+  clientDocument,
+  clientsItemsCollection,
+  loanDocument,
+  loansItemsCollection,
+  tenantAppSettingsDocument,
+  userProfileDocument,
+} from "../../services/firestorePaths";
 import LoadingPage from "../LoadingPage/LoadingPage";
 import "./SettingsPage.css";
 
@@ -91,12 +92,12 @@ function SettingsPage() {
       setError("");
       try {
         // Carregar configurações
-        const settingsRef = doc(db, "settings", user.uid);
+        const settingsRef = tenantAppSettingsDocument(user.uid);
         const settingsSnap = await getDoc(settingsRef);
 
         // Carregar dados do usuário
-        const userRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userRef);
+        const userProfileRef = userProfileDocument(user.uid);
+        const userSnap = await getDoc(userProfileRef);
 
         let userData: UserData = {};
         if (userSnap.exists()) {
@@ -170,7 +171,7 @@ function SettingsPage() {
     setLoading(true);
     setError("");
     try {
-      await setDoc(doc(db, "settings", user.uid), settings, { merge: true });
+      await setDoc(tenantAppSettingsDocument(user.uid), settings, { merge: true });
       alert("Configurações salvas com sucesso!");
     } catch (err: any) {
       setError("Erro ao salvar configurações: " + err.message);
@@ -217,7 +218,7 @@ function SettingsPage() {
       // Exportar clientes
       try {
         setExportProgress("Exportando clientes...");
-        const clientsRef = collection(db, "clients");
+        const clientsRef = clientsItemsCollection(user.uid);
         const clientsQuery = query(clientsRef);
         const clientsSnapshot = await getDocs(clientsQuery);
         const clientsData: any[] = [];
@@ -242,7 +243,7 @@ function SettingsPage() {
       // Exportar pagamentos
       try {
         setExportProgress("Exportando pagamentos...");
-        const paymentsRef = collection(db, "payments");
+        const paymentsRef = loansItemsCollection(user.uid);
         const paymentsQuery = query(paymentsRef);
         const paymentsSnapshot = await getDocs(paymentsQuery);
         const paymentsData: any[] = [];
@@ -267,13 +268,13 @@ function SettingsPage() {
       // Exportar configurações do usuário
       try {
         setExportProgress("Exportando configurações...");
-        const settingsRef = doc(db, "settings", user.uid);
-        const settingsSnap = await getDoc(settingsRef);
+        const settingsExportRef = tenantAppSettingsDocument(user.uid);
+        const settingsExportSnap = await getDoc(settingsExportRef);
 
-        if (settingsSnap.exists()) {
+        if (settingsExportSnap.exists()) {
           exportData.collections.settings = {
-            id: settingsSnap.id,
-            ...convertTimestamps(settingsSnap.data()),
+            id: settingsExportSnap.id,
+            ...convertTimestamps(settingsExportSnap.data()),
           };
         } else {
           exportData.collections.settings = null;
@@ -287,13 +288,13 @@ function SettingsPage() {
       // Exportar dados do usuário
       try {
         setExportProgress("Exportando dados do usuário...");
-        const userRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userRef);
+        const userExportRef = userProfileDocument(user.uid);
+        const userExportSnap = await getDoc(userExportRef);
 
-        if (userSnap.exists()) {
+        if (userExportSnap.exists()) {
           exportData.collections.user = {
-            id: userSnap.id,
-            ...convertTimestamps(userSnap.data()),
+            id: userExportSnap.id,
+            ...convertTimestamps(userExportSnap.data()),
           };
         } else {
           exportData.collections.user = null;
@@ -478,7 +479,7 @@ function SettingsPage() {
                 updatedAt: new Date(),
               };
 
-              await setDoc(doc(db, "clients", id), clientToImport);
+              await setDoc(clientDocument(user.uid, id), clientToImport);
               importedCount++;
             }
           }
@@ -508,7 +509,7 @@ function SettingsPage() {
                 updatedAt: new Date(),
               };
 
-              await setDoc(doc(db, "payments", id), paymentToImport);
+              await setDoc(loanDocument(user.uid, id), paymentToImport);
               importedCount++;
             }
           }
@@ -521,7 +522,7 @@ function SettingsPage() {
       if (data.collections.settings && !data.collections.settings.error) {
         try {
           const { id, ...settingsData } = data.collections.settings;
-          await setDoc(doc(db, "settings", user.uid), settingsData, {
+          await setDoc(tenantAppSettingsDocument(user.uid), settingsData, {
             merge: true,
           });
           importedCount++;
@@ -534,7 +535,7 @@ function SettingsPage() {
       if (data.collections.user && !data.collections.user.error) {
         try {
           const { id, ...userData } = data.collections.user;
-          await setDoc(doc(db, "users", user.uid), userData, { merge: true });
+          await setDoc(userProfileDocument(user.uid), userData, { merge: true });
           importedCount++;
         } catch (err: any) {
           errors.push(`Erro ao importar dados do usuário: ${err.message}`);

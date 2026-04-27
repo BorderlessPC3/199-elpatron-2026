@@ -3,10 +3,12 @@ import { clientsItemsCollection, clientDocument, loansItemsCollection } from "./
 import type { Client } from "../types/client";
 import type { Payment } from "../types/payment";
 import { normalizePayment } from "../utils/paymentNormalizer";
+import { requireAuthPathUid } from "./requireAuthPathUid";
 
 export type ClientSaveInput = Omit<Client, "id" | "userId" | "createdAt" | "updatedAt">;
 
 export async function fetchClientsByUser(userId: string): Promise<Client[]> {
+  requireAuthPathUid(userId);
   const clientsRef = clientsItemsCollection(userId);
   const q = query(clientsRef, orderBy("createdAt", "desc"));
   const snapshot = await getDocs(q);
@@ -30,6 +32,7 @@ export async function fetchClientsByUser(userId: string): Promise<Client[]> {
 }
 
 export async function fetchPaymentsSummaryByUser(userId: string): Promise<Payment[]> {
+  requireAuthPathUid(userId);
   const paymentsRef = loansItemsCollection(userId);
   const q = query(paymentsRef);
   const snapshot = await getDocs(q);
@@ -43,6 +46,7 @@ export async function saveClient(
   clientData: ClientSaveInput,
   editingClientId?: string,
 ): Promise<void> {
+  requireAuthPathUid(userId);
   if (editingClientId) {
     await updateDoc(clientDocument(userId, editingClientId), {
       ...clientData,
@@ -60,5 +64,6 @@ export async function saveClient(
 }
 
 export async function deleteClient(userId: string, id: string): Promise<void> {
+  requireAuthPathUid(userId);
   await deleteDoc(clientDocument(userId, id));
 }

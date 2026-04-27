@@ -2,58 +2,269 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- Funções auxiliares (devem vir antes de qualquer match) ---
+
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
     }
 
-    // Perfil: users/{userId}
+    function isValidYmd(s) {
+      return s is string
+        && s.size() == 10
+        && s.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function isTimestampOrString(v) {
+      return v is timestamp || v is string;
+    }
+
+    function userProfileKeys() {
+      return [
+        "displayName", "name", "email", "companyName", "phone",
+        "address", "city", "state", "zipCode", "photoURL",
+        "updatedAt", "createdAt"
+      ];
+    }
+
+    function validUserProfile() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(userProfileKeys())
+        && (!("displayName" in d) || d.displayName is string)
+        && (!("name" in d) || d.name is string)
+        && (!("email" in d) || d.email is string)
+        && (!("companyName" in d) || d.companyName is string)
+        && (!("phone" in d) || d.phone is string)
+        && (!("address" in d) || d.address is string)
+        && (!("city" in d) || d.city is string)
+        && (!("state" in d) || d.state is string)
+        && (!("zipCode" in d) || d.zipCode is string)
+        && (!("photoURL" in d) || d.photoURL is string)
+        && (!("updatedAt" in d) || isTimestampOrString(d.updatedAt))
+        && (!("createdAt" in d) || isTimestampOrString(d.createdAt));
+    }
+
+    function userPrefsKeys() {
+      return ["autoNotifications", "defaultWhatsappNumber"];
+    }
+
+    function validUserPreferences() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(userPrefsKeys())
+        && d.autoNotifications is bool
+        && (!("defaultWhatsappNumber" in d) || d.defaultWhatsappNumber is string);
+    }
+
+    function settingsTopKeys() {
+      return [
+        "companyName", "email", "phone", "address", "city", "state", "zipCode",
+        "backup", "theme"
+      ];
+    }
+
+    function backupKeys() {
+      return [
+        "autoBackup", "frequency", "keepDays", "preferredTime", "timezone",
+        "includeClients", "includePayments", "includeSettings", "includeReports",
+        "encryption", "integrityCheck", "compression",
+        "retentionDaily", "retentionWeekly", "retentionMonthly",
+        "notifySuccess", "notifyFailure", "weeklyReport"
+      ];
+    }
+
+    function validBackupMap(b) {
+      return b is map
+        && b.keys().hasOnly(backupKeys())
+        && b.autoBackup is bool
+        && b.frequency is string
+        && b.keepDays is number
+        && b.preferredTime is string
+        && b.timezone is string
+        && b.includeClients is bool
+        && b.includePayments is bool
+        && b.includeSettings is bool
+        && b.includeReports is bool
+        && b.encryption is bool
+        && b.integrityCheck is bool
+        && b.compression is bool
+        && b.retentionDaily is number
+        && b.retentionWeekly is number
+        && b.retentionMonthly is number
+        && b.notifySuccess is bool
+        && b.notifyFailure is bool
+        && b.weeklyReport is bool;
+    }
+
+    function validTenantSettings() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(settingsTopKeys())
+        && d.companyName is string
+        && d.email is string
+        && d.phone is string
+        && d.address is string
+        && d.city is string
+        && d.state is string
+        && d.zipCode is string
+        && validBackupMap(d.backup)
+        && (!("theme" in d) || (d.theme is string && (d.theme == "light" || d.theme == "dark")));
+    }
+
+    function clientKeys() {
+      return [
+        "name", "email", "phone", "company", "status", "lastContact",
+        "totalRevenue", "userId", "createdAt", "updatedAt"
+      ];
+    }
+
+    function validClientWrite(uid) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(clientKeys())
+        && d.userId == uid
+        && d.name is string
+        && d.name.size() > 0
+        && d.email is string
+        && d.phone is string
+        && d.company is string
+        && d.status in ["active", "inactive", "pending"]
+        && d.lastContact is string
+        && d.totalRevenue is number
+        && d.createdAt is timestamp
+        && d.updatedAt is timestamp;
+    }
+
+    function loanKeys() {
+      return [
+        "clientName", "clientEmail", "amount", "loanAmount", "firstReceiveDate",
+        "installmentCount", "installments", "date", "status", "paymentMethod",
+        "description", "userId", "createdAt", "updatedAt"
+      ];
+    }
+
+    function validLoanStatus(s) {
+      return s in ["paid", "late", "pending", "failed", "refunded"];
+    }
+
+    function validPaymentMethod(m) {
+      return m in ["credit_card", "pix", "bank_transfer", "cash"];
+    }
+
+    function installmentShape(m) {
+      return m is map
+        && m.keys().hasOnly(["id", "dueDate", "amount", "paid", "paidAt"])
+        && m.id is string
+        && m.id.size() > 0
+        && isValidYmd(m.dueDate)
+        && m.amount is number
+        && m.amount > 0
+        && m.paid is bool
+        && (!("paidAt" in m) || m.paidAt == null || m.paidAt is string || m.paidAt is timestamp);
+    }
+
+    function validInstallmentsList(list) {
+      return list is list
+        && list.size() > 0
+        && list.size() <= 120
+        && installmentShape(list[0]);
+    }
+
+    function validLoanWrite(uid) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(loanKeys())
+        && d.userId == uid
+        && d.clientName is string
+        && d.clientName.size() > 0
+        && d.clientEmail is string
+        && d.amount is number
+        && d.amount > 0
+        && d.loanAmount is number
+        && d.loanAmount > 0
+        && isValidYmd(d.firstReceiveDate)
+        && isValidYmd(d.date)
+        && d.installmentCount is number
+        && d.installmentCount > 0
+        && d.installmentCount <= 120
+        && d.installments is list
+        && d.installments.size() == d.installmentCount
+        && validInstallmentsList(d.installments)
+        && validLoanStatus(d.status)
+        && validPaymentMethod(d.paymentMethod)
+        && d.description is string
+        && d.createdAt is timestamp
+        && d.updatedAt is timestamp;
+    }
+
+    function agendaTaskKeys() {
+      return ["title", "description", "date", "priority", "completed", "userId"];
+    }
+
+    function validAgendaTask(uid) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(agendaTaskKeys())
+        && d.userId == uid
+        && d.title is string
+        && d.title.size() > 0
+        && d.description is string
+        && d.date is string
+        && d.priority in ["high", "medium", "low"]
+        && d.completed is bool;
+    }
+
+    // --- Coleções ---
+
     match /users/{userId} {
-      allow read, create, update: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && validUserProfile();
+      allow delete: if false;
+
+      match /settings/{docId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validUserPreferences();
+        allow delete: if false;
+      }
+    }
+
+    match /settings/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && validTenantSettings();
       allow delete: if false;
     }
 
-    // Preferências: users/{userId}/settings/{docId}
-    match /users/{userId}/settings/{docId} {
-      allow read, create, update: if isOwner(userId);
-      allow delete: if false;
-    }
-
-    // clients/{userId}/items/{clientId}
     match /clients/{userId}/items/{clientId} {
-      function validClient() {
-        return request.resource.data.name is string
-          && request.resource.data.name.size() > 0
-          && request.resource.data.userId == userId;
-      }
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && validClient();
-      allow update: if isOwner(userId) && validClient();
+      allow create: if isOwner(userId) && validClientWrite(userId);
+      allow update: if isOwner(userId) && validClientWrite(userId);
       allow delete: if isOwner(userId);
     }
 
-    // loans (empréstimos): loans/{userId}/items/{loanId}
     match /loans/{userId}/items/{loanId} {
-      function validLoan() {
-        return request.resource.data.loanAmount is number
-          && request.resource.data.loanAmount > 0
-          && request.resource.data.userId == userId;
-      }
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && validLoan();
-      allow update: if isOwner(userId) && validLoan();
+      allow create: if isOwner(userId) && validLoanWrite(userId);
+      allow update: if isOwner(userId) && validLoanWrite(userId);
       allow delete: if isOwner(userId);
     }
 
-    // agenda: agenda/{userId}/items/{taskId}
     match /agenda/{userId}/items/{taskId} {
-      allow read, create, update, delete: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validAgendaTask(userId);
+      allow update: if isOwner(userId) && validAgendaTask(userId);
+      allow delete: if isOwner(userId);
     }
 
-    // Apenas o backend (Admin SDK) grava; clientes não
+    match /backups/{docId} {
+      allow read: if isSignedIn() && docId.matches("^" + request.auth.uid + "_.+");
+      allow create: if isSignedIn()
+        && docId.matches("^" + request.auth.uid + "_.+")
+        && request.resource.data.keys().hasOnly([
+          "backupDate", "userId", "userEmail", "settings", "message"
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.settings is map;
+      allow update, delete: if false;
+    }
+
     match /notificationLogs/{id} {
       allow read, write: if false;
     }
