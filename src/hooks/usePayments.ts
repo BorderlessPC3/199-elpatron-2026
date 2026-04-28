@@ -49,7 +49,7 @@ export function usePayments() {
         setLoading(true);
         setError("");
         await ensureClientExistsForPayment(userId, paymentData, clients);
-        await savePayment(userId, paymentData, editingPaymentId);
+        return await savePayment(userId, paymentData, editingPaymentId);
       } catch (err: unknown) {
         const message = getErrorMessage(err);
         setError(`Erro ao salvar pagamento: ${message}`);

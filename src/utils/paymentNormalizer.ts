@@ -42,6 +42,19 @@ export const normalizePaymentStatus = (status: unknown): PaymentStatus => {
   }
 };
 
+const normalizeExternalPaymentStatus = (
+  status: unknown,
+): "pending" | "paid" | "overdue" => {
+  switch (status) {
+    case "pending":
+    case "paid":
+    case "overdue":
+      return status;
+    default:
+      return "pending";
+  }
+};
+
 export const normalizeInstallments = (
   paymentData: Record<string, unknown>,
 ): PaymentInstallment[] => {
@@ -93,6 +106,12 @@ export const normalizePayment = (raw: RawPayment): Payment => {
     status: normalizePaymentStatus(raw.status),
     paymentMethod: (raw.paymentMethod as Payment["paymentMethod"]) || "pix",
     description: String(raw.description || ""),
+    asaasPaymentId: raw.asaasPaymentId ? String(raw.asaasPaymentId) : undefined,
+    pixQrCode: raw.pixQrCode ? String(raw.pixQrCode) : null,
+    pixCopyPaste: raw.pixCopyPaste ? String(raw.pixCopyPaste) : null,
+    paymentStatus: normalizeExternalPaymentStatus(raw.paymentStatus),
+    externalPaymentProvider:
+      raw.externalPaymentProvider === "asaas" ? "asaas" : undefined,
     userId: String(raw.userId || ""),
     createdAt: toDate(raw.createdAt as TimestampLike),
     updatedAt: toDate(raw.updatedAt as TimestampLike),

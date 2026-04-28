@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:rules": "npx -y firebase-tools@13.29.1 emulators:exec --only firestore --project demo-elpatron \"vitest run tests/firestore.rules.test.ts\""
+    "test:rules": "firebase emulators:exec --only firestore --project demo-elpatron \"vitest run tests/firestore.rules.test.ts\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

@@ -23,6 +23,11 @@ export interface Payment {
   status: PaymentStatus;
   paymentMethod: PaymentMethod;
   description: string;
+  asaasPaymentId?: string;
+  pixQrCode?: string | null;
+  pixCopyPaste?: string | null;
+  paymentStatus?: "pending" | "paid" | "overdue";
+  externalPaymentProvider?: "asaas";
   userId: string;
   createdAt: Date;
   updatedAt: Date;

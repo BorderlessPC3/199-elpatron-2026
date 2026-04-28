@@ -31,7 +31,7 @@ export async function savePayment(
   userId: string,
   paymentData: PaymentSaveInput,
   editingPaymentId?: string,
-): Promise<void> {
+): Promise<string> {
   requireAuthPathUid(userId);
   const normalizedData = {
     ...paymentData,
@@ -49,15 +49,21 @@ export async function savePayment(
       ...normalizedData,
       updatedAt: new Date(),
     });
-    return;
+    return editingPaymentId;
   }
 
-  await addDoc(loansItemsCollection(userId), {
+  const docRef = await addDoc(loansItemsCollection(userId), {
     ...normalizedData,
+    paymentStatus: "pending",
+    externalPaymentProvider: "asaas",
+    asaasPaymentId: null,
+    pixQrCode: null,
+    pixCopyPaste: null,
     userId,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
+  return docRef.id;
 }
 
 export async function deletePayment(userId: string, id: string): Promise<void> {

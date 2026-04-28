@@ -20,13 +20,12 @@ import appLogo from "../../assets/logo-elpatron.png";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToastHelpers } from "../../contexts/ToastContext";
 import { usePayments } from "../../hooks";
+import { createPixCharge } from "../../services/asaasService";
 import type {
   Payment,
-  PaymentInstallment,
-  PaymentStatus,
 } from "../../types/payment";
 import { getErrorMessage } from "../../utils/error";
-import { formatInputDate, parseLocalDate } from "../../utils/paymentNormalizer";
+import { parseLocalDate } from "../../utils/paymentNormalizer";
 import LoadingPage from "../LoadingPage/LoadingPage";
 import PaymentModal from "./PaymentModal.tsx";
 import ConfirmModal from "../../components/ConfirmModal/ConfirmModal";
@@ -34,7 +33,7 @@ import "./PaymentsPage.css";
 
 interface PaymentStatusInfo {
   key: "late" | "on_time";
-  label: "Atrasado" | "Em dia";
+  label: string;
   detail: string;
 }
 
@@ -72,11 +71,7 @@ function PaymentsPage() {
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
-  const [installmentsModalPayment, setInstallmentsModalPayment] =
-    useState<Payment | null>(null);
-  const [draftInstallments, setDraftInstallments] = useState<PaymentInstallment[]>([]);
-  const [statusUpdatePayment, setStatusUpdatePayment] = useState<Payment | null>(null);
-  const [paidNowCount, setPaidNowCount] = useState<number>(1);
+  const [pixModalPayment, setPixModalPayment] = useState<Payment | null>(null);
 
   const { user } = useAuth();
   const { showSuccess, showError } = useToastHelpers();
@@ -91,7 +86,6 @@ function PaymentsPage() {
     loadClients,
     savePaymentWithClient,
     removePayment,
-    updatePaymentInstallments,
   } = usePayments();
 
   useEffect(() => {
@@ -159,13 +153,15 @@ function PaymentsPage() {
       });
 
       const statusInfo: PaymentStatusInfo =
-        overdueCount > 0
+        payment.paymentStatus === "overdue"
           ? {
               key: "late",
               label: "Atrasado",
               detail: overdueCount === 1 ? "1 parcela" : `${overdueCount} parcelas`,
             }
-          : { key: "on_time", label: "Em dia", detail: "" };
+          : payment.paymentStatus === "paid"
+            ? { key: "on_time", label: "Pago", detail: "" }
+            : { key: "on_time", label: "Pendente", detail: "" };
 
       map.set(payment.id, {
         statusInfo,
@@ -309,18 +305,23 @@ function PaymentsPage() {
     if (!user) return;
 
     try {
-      await savePaymentWithClient(user.uid, paymentData, editingPayment?.id);
+      const loanId = await savePaymentWithClient(
+        user.uid,
+        paymentData,
+        editingPayment?.id,
+      );
+      if (!editingPayment && loanId) {
+        await createPixCharge({ userId: user.uid, loanId });
+      }
       if (editingPayment) {
         showSuccess(
           "Pagamento Atualizado",
           `Pagamento de ${paymentData.clientName} foi atualizado`,
         );
       } else {
-        const statusMessage =
-          paymentData.status === "paid" ? "recebido" : "registrado";
         showSuccess(
           "Pagamento Criado",
-          `Pagamento de ${paymentData.clientName} foi ${statusMessage}`,
+          `Pagamento de ${paymentData.clientName} criado com cobrança PIX`,
         );
       }
 
@@ -364,111 +365,8 @@ function PaymentsPage() {
     setConfirmOpen(true);
   };
 
-  const openStatusUpdateModal = (payment: Payment) => {
-    setStatusUpdatePayment(payment);
-    setPaidNowCount(1);
-  };
-
-  const applyPaidInstallmentsFromStatus = async () => {
-    if (!statusUpdatePayment || !user) return;
-
-    try {
-      const unpaidInstallments = statusUpdatePayment.installments
-        .filter((installment) => !installment.paid)
-        .sort(
-          (a, b) =>
-            parseLocalDate(a.dueDate).getTime() - parseLocalDate(b.dueDate).getTime(),
-        );
-
-      const maxPayable = unpaidInstallments.length;
-      const safeCount = Math.max(0, Math.min(paidNowCount, maxPayable));
-      if (safeCount === 0) {
-        setStatusUpdatePayment(null);
-        return;
-      }
-
-      const toMarkPaid = new Set(
-        unpaidInstallments.slice(0, safeCount).map((installment) => installment.id),
-      );
-
-      const updatedInstallments = statusUpdatePayment.installments.map((installment) =>
-        toMarkPaid.has(installment.id)
-          ? { ...installment, paid: true, paidAt: formatInputDate(new Date()) }
-          : installment,
-      );
-
-      const hasOverdueAfterUpdate = updatedInstallments.some((installment) => {
-        if (installment.paid) return false;
-        const dueDate = parseLocalDate(installment.dueDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        dueDate.setHours(0, 0, 0, 0);
-        return dueDate.getTime() < today.getTime();
-      });
-      const updatedStatus: PaymentStatus = hasOverdueAfterUpdate ? "late" : "paid";
-
-      await updatePaymentInstallments(
-        user.uid,
-        statusUpdatePayment.id,
-        updatedInstallments,
-        updatedStatus,
-      );
-
-      showSuccess(
-        "Status atualizado",
-        `${safeCount} parcela(s) marcada(s) como paga(s).`,
-      );
-      setStatusUpdatePayment(null);
-      await loadPayments(user.uid);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Falha ao atualizar status";
-      setError(`Erro ao atualizar status: ${message}`);
-      showError("Erro ao atualizar", `Erro ao atualizar status: ${message}`);
-    }
-  };
-
-  const openInstallmentsModal = (payment: Payment) => {
-    setInstallmentsModalPayment(payment);
-    setDraftInstallments(payment.installments);
-  };
-
-  const toggleDraftInstallment = (installmentId: string, checked: boolean) => {
-    setDraftInstallments((prev) =>
-      prev.map((installment) =>
-        installment.id === installmentId
-          ? {
-              ...installment,
-              paid: checked,
-              paidAt: checked ? formatInputDate(new Date()) : null,
-            }
-          : installment,
-      ),
-    );
-  };
-
-  const saveInstallmentsFromModal = async () => {
-    if (!installmentsModalPayment || !user) return;
-    try {
-      const allPaid = draftInstallments.every((installment) => installment.paid);
-      const updatedStatus: PaymentStatus = allPaid ? "paid" : "late";
-
-      await updatePaymentInstallments(
-        user.uid,
-        installmentsModalPayment.id,
-        draftInstallments,
-        updatedStatus,
-      );
-
-      showSuccess("Parcelas atualizadas", "As parcelas foram atualizadas com sucesso");
-      setInstallmentsModalPayment(null);
-      setDraftInstallments([]);
-      if (user) await loadPayments(user.uid);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Falha ao atualizar parcelas";
-      setError(`Erro ao atualizar parcelas: ${message}`);
-      showError("Erro ao atualizar", `Erro ao atualizar parcelas: ${message}`);
-    }
+  const openPixModal = (payment: Payment) => {
+    setPixModalPayment(payment);
   };
 
   const exportPaymentPDF = async (payment: Payment) => {
@@ -823,10 +721,10 @@ function PaymentsPage() {
                     <button
                       type="button"
                       className="btn-link"
-                      onClick={() => openInstallmentsModal(payment)}
+                      onClick={() => openPixModal(payment)}
                       disabled={loading}
                     >
-                      Atualizar parcelas
+                      Ver cobrança PIX
                     </button>
                   </div>
                 </td>
@@ -841,9 +739,8 @@ function PaymentsPage() {
                       <button
                         type="button"
                         className={`status-display-btn ${statusInfo.key}`}
-                        onClick={() => openStatusUpdateModal(payment)}
-                        disabled={loading}
-                        title="Clique para informar parcelas pagas"
+                        disabled
+                        title="Status sincronizado automaticamente via webhook Asaas"
                       >
                         <span>{statusInfo.label}</span>
                         {statusInfo.key === "late" && (
@@ -1028,32 +925,39 @@ function PaymentsPage() {
         />
       )}
 
-      {statusUpdatePayment && (
+      {pixModalPayment && (
         <div
           className="modal-overlay"
           onClick={() => {
-            setStatusUpdatePayment(null);
-            setPaidNowCount(1);
+            setPixModalPayment(null);
           }}
         >
           <div className="installments-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Atualizar status - {statusUpdatePayment.clientName}</h3>
-            <p className="status-update-help">
-              Informe quantas parcelas foram pagas agora.
-            </p>
+            <h3>Cobrança PIX - {pixModalPayment.clientName}</h3>
+            <div className="status-update-help">
+              <p>
+                Status da cobrança: <strong>{pixModalPayment.paymentStatus ?? "pending"}</strong>
+              </p>
+              <p>
+                Provider: <strong>{pixModalPayment.externalPaymentProvider ?? "asaas"}</strong>
+              </p>
+            </div>
+            {pixModalPayment.pixQrCode ? (
+              <img
+                src={pixModalPayment.pixQrCode}
+                alt="QR Code PIX"
+                style={{ width: "100%", maxWidth: "320px", borderRadius: "8px" }}
+              />
+            ) : (
+              <p>QR Code ainda não disponível para esta cobrança.</p>
+            )}
             <div className="form-group">
-              <label htmlFor="paid-now-count">Parcelas pagas</label>
-              <input
-                id="paid-now-count"
-                type="number"
-                min={0}
-                max={
-                  paymentMetaById.get(statusUpdatePayment.id)?.unpaidInstallmentsCount ??
-                  statusUpdatePayment.installments.filter((installment) => !installment.paid)
-                    .length
-                }
-                value={paidNowCount}
-                onChange={(e) => setPaidNowCount(Number(e.target.value) || 0)}
+              <label>Código copia e cola</label>
+              <textarea
+                readOnly
+                value={pixModalPayment.pixCopyPaste ?? ""}
+                rows={4}
+                style={{ width: "100%" }}
               />
             </div>
             <div className="installments-modal-actions">
@@ -1061,74 +965,16 @@ function PaymentsPage() {
                 type="button"
                 className="btn-secondary"
                 onClick={() => {
-                  setStatusUpdatePayment(null);
-                  setPaidNowCount(1);
+                  setPixModalPayment(null);
                 }}
               >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={applyPaidInstallmentsFromStatus}
-                disabled={loading}
-              >
-                Confirmar atualização
+                Fechar
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {installmentsModalPayment && (
-        <div
-          className="modal-overlay"
-          onClick={() => {
-            setInstallmentsModalPayment(null);
-            setDraftInstallments([]);
-          }}
-        >
-          <div className="installments-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Parcelas - {installmentsModalPayment.clientName}</h3>
-            <div className="installments-modal-list">
-              {draftInstallments.map((installment, index) => (
-                <label key={installment.id} className="installment-modal-row">
-                  <span className="installment-modal-index">{index + 1}a</span>
-                  <span>{formatDate(installment.dueDate)}</span>
-                  <span>{formatCurrency(installment.amount)}</span>
-                  <input
-                    type="checkbox"
-                    checked={installment.paid}
-                    onChange={(e) =>
-                      toggleDraftInstallment(installment.id, e.target.checked)
-                    }
-                  />
-                </label>
-              ))}
-            </div>
-            <div className="installments-modal-actions">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => {
-                  setInstallmentsModalPayment(null);
-                  setDraftInstallments([]);
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={saveInstallmentsFromModal}
-                disabled={loading}
-              >
-                Salvar parcelas
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

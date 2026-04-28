@@ -220,8 +220,7 @@ function PaymentModal({
         (sum, installment) => sum + installment.amount,
         0,
       );
-      const allPaid = formData.installments.every((installment) => installment.paid);
-      const computedStatus = allPaid ? "paid" : "late";
+      const computedStatus = payment?.status ?? "pending";
 
       onSave({
         ...formData,

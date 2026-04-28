@@ -4,6 +4,10 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { dispatchMessage, type OutboundMessage } from "./notificationService";
+export {
+  createPixChargeFunction as createPixCharge,
+  handleAsaasWebhook,
+} from "./asaasWebhook";
 
 initializeApp();
 const db = getFirestore();

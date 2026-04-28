@@ -139,7 +139,8 @@ service cloud.firestore {
       return [
         "clientName", "clientEmail", "amount", "loanAmount", "firstReceiveDate",
         "installmentCount", "installments", "date", "status", "paymentMethod",
-        "description", "userId", "createdAt", "updatedAt"
+        "description", "userId", "createdAt", "updatedAt", "asaasPaymentId",
+        "pixQrCode", "pixCopyPaste", "paymentStatus", "externalPaymentProvider"
       ];
     }
 
@@ -149,6 +150,23 @@ service cloud.firestore {
 
     function validPaymentMethod(m) {
       return m in ["credit_card", "pix", "bank_transfer", "cash"];
+    }
+
+    function validExternalPaymentStatus(s) {
+      return s in ["pending", "paid", "overdue"];
+    }
+
+    function validExternalPaymentProvider(p) {
+      return p == "asaas";
+    }
+
+    function loanExternalReadonlyOnUpdate() {
+      return !("paymentStatus" in resource.data)
+        || request.resource.data.paymentStatus == resource.data.paymentStatus
+        && request.resource.data.asaasPaymentId == resource.data.asaasPaymentId
+        && request.resource.data.pixQrCode == resource.data.pixQrCode
+        && request.resource.data.pixCopyPaste == resource.data.pixCopyPaste
+        && request.resource.data.externalPaymentProvider == resource.data.externalPaymentProvider;
     }
 
     function installmentShape(m) {
@@ -192,6 +210,12 @@ service cloud.firestore {
         && validLoanStatus(d.status)
         && validPaymentMethod(d.paymentMethod)
         && d.description is string
+        && (!("asaasPaymentId" in d) || d.asaasPaymentId == null || d.asaasPaymentId is string)
+        && (!("pixQrCode" in d) || d.pixQrCode == null || d.pixQrCode is string)
+        && (!("pixCopyPaste" in d) || d.pixCopyPaste == null || d.pixCopyPaste is string)
+        && (!("paymentStatus" in d) || validExternalPaymentStatus(d.paymentStatus))
+        && (!("externalPaymentProvider" in d) || validExternalPaymentProvider(d.externalPaymentProvider))
+        && (resource == null || loanExternalReadonlyOnUpdate())
         && d.createdAt is timestamp
         && d.updatedAt is timestamp;
     }
