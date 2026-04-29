@@ -4,21 +4,22 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(2, 6, 23, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
 }
 
 .confirm-modal-content {
   background: var(--color-surface);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   width: 90%;
   max-width: 420px;
   padding: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
 }
 
 .confirm-modal-header h3 {
@@ -42,8 +43,9 @@
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .btn-primary {
@@ -51,6 +53,17 @@
   background: var(--gradient-primary);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-background);
+  border-color: var(--color-primaryLight);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }

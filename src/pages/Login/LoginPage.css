@@ -212,8 +212,9 @@
 .login-formbg {
   width: 100%;
   background: var(--color-surface);
-  border-radius: 4px;
-  box-shadow: rgba(60, 66, 87, 0.12) 0px 7px 14px 0px, rgba(0, 0, 0, 0.12) 0px 3px 6px 0px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
 }
 
 .login-formbg-inner {
@@ -239,6 +240,40 @@
   margin-bottom: 24px;
 }
 
+.login-password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-textSecondary);
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.login-password-toggle:hover:not(:disabled) {
+  color: var(--color-primary);
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.login-password-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Inputs */
 .login-field input {
   font-size: 16px;
@@ -247,7 +282,7 @@
   width: 100%;
   min-height: 44px;
   border: unset;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   outline-color: rgb(31 78 121 / 0.45);
   background-color: var(--color-surface);
   color: var(--color-text);
@@ -258,6 +293,11 @@
               rgba(0, 0, 0, 0) 0px 0px 0px 0px, 
               rgba(0, 0, 0, 0) 0px 0px 0px 0px, 
               rgba(0, 0, 0, 0) 0px 0px 0px 0px;
+}
+
+.login-field input:focus {
+  box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.14),
+              rgba(60, 66, 87, 0.16) 0px 0px 0px 1px;
 }
 
 .login-field input[type="submit"] {
@@ -272,11 +312,23 @@
   color: #fff;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .login-field input[type="submit"]:hover {
   background-color: var(--color-primaryDark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.login-field input[type="submit"]:disabled {
+  opacity: 0.7;
+  transform: none;
+  box-shadow: none;
+}
+
+.login-field--password .login-password-wrap input {
+  padding-right: 48px;
 }
 
 .login-field-checkbox input {

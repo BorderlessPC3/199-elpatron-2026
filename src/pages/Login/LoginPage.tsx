@@ -1,4 +1,6 @@
 import "./LoginPage.css";
+import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -9,6 +11,7 @@ import LoadingPage from "../LoadingPage/LoadingPage";
 function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -190,18 +193,34 @@ function LoginPage() {
                     />
                   </div>
 
-                  <div className="login-field">
+                  <div className="login-field login-field--password">
                     <label htmlFor="password">Senha</label>
-                    <input
-                      type="password"
-                      name="password"
-                      id="password"
-                      placeholder="••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      disabled={loading}
-                    />
+                    <div className="login-password-wrap">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        id="password"
+                        placeholder="••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        disabled={loading}
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        className="login-password-toggle"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={
+                          showPassword ? "Ocultar senha" : "Mostrar senha"
+                        }
+                        disabled={loading}
+                      >
+                        <FontAwesomeIcon
+                          icon={showPassword ? faEyeSlash : faEye}
+                        />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="login-field">

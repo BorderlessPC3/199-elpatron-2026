@@ -22,8 +22,8 @@
 
 .toast {
   background: var(--color-surface);
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   border: 1px solid var(--color-border);
   padding: 16px;
   display: flex;
@@ -156,7 +156,7 @@
 
 .toast-message {
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--color-textSecondary);
   margin: 0;
   line-height: 1.4;
   word-wrap: break-word;
@@ -169,10 +169,10 @@
   right: 8px;
   background: none;
   border: none;
-  color: var(--color-text-secondary);
+  color: var(--color-textSecondary);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -196,7 +196,7 @@
   color: white;
   border: none;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -204,7 +204,7 @@
 }
 
 .toast-action-button:hover {
-  background: var(--color-primary-dark);
+  background: var(--color-primaryDark);
   transform: translateY(-1px);
 }
 
@@ -305,11 +305,11 @@
 .toast-overflow-indicator {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 8px 12px;
   text-align: center;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--color-textSecondary);
   margin-top: 8px;
   pointer-events: auto;
   cursor: pointer;
@@ -317,6 +317,6 @@
 }
 
 .toast-overflow-indicator:hover {
-  background: var(--color-border-light);
+  background: var(--color-borderLight);
   transform: translateY(-1px);
 }

@@ -55,6 +55,13 @@ body {
   --color-warning: #f59e0b;
   --color-error: #ef4444;
   --color-info: #3b82f6;
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.12);
+  --shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.18);
   
   /* Variáveis para animações de tema */
   --theme-hue-rotate: 0deg;
@@ -62,4 +69,19 @@ body {
   --theme-mode: light;
   /* Variável para modo meia noite */
   --theme-midnight: false;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid rgba(31, 78, 121, 0.35);
+  outline-offset: 2px;
 }

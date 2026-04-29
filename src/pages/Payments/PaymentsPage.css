@@ -34,9 +34,9 @@
 
 .summary-card {
   background: var(--color-surface);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   border: 1px solid var(--color-border);
   display: flex;
   align-items: center;
@@ -79,13 +79,13 @@
 /* Filtros */
 .payments-filters {
   background: var(--color-surface);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   padding: 24px;
   margin-bottom: 24px;
   display: flex;
   gap: 16px;
   align-items: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   border: 1px solid var(--color-border);
   flex-wrap: wrap;
 }
@@ -109,7 +109,7 @@
   width: 100%;
   padding: 12px 16px 12px 48px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   font-size: 15px;
   background: var(--color-background);
   transition: all 0.2s ease;
@@ -170,7 +170,7 @@
 .filter-select {
   padding: 12px 16px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   font-size: 15px;
   background: var(--color-background);
   cursor: pointer;
@@ -187,9 +187,9 @@
 /* Tabela */
 .payments-table-container {
   background: var(--color-surface);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   border: 1px solid var(--color-border);
   position: relative;
 }
@@ -207,6 +207,9 @@
   color: var(--color-textSecondary);
   font-size: 14px;
   border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .payments-table th.sortable {
@@ -366,7 +369,7 @@
   padding: 12px 24px;
   background: var(--gradient-primary);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   color: white;
   font-weight: 600;
   font-size: 15px;
@@ -375,12 +378,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 6px rgba(139, 92, 246, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 12px rgba(139, 92, 246, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .actions {
@@ -423,9 +426,13 @@
   text-align: left;
 }
 
+.btn-link:hover {
+  color: var(--color-primaryDark);
+}
+
 .status-display-btn {
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: #fff;
   padding: 8px 10px;
   min-width: 120px;
@@ -490,7 +497,7 @@
 .installments-modal {
   background: var(--color-surface);
   width: min(640px, 92vw);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 20px;
   border: 1px solid var(--color-border);
 }
@@ -511,7 +518,7 @@
   gap: 10px;
   padding: 10px;
   border: 1px solid var(--color-borderLight);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
 }
 
 .installment-modal-index {
@@ -530,7 +537,7 @@
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -583,6 +590,9 @@
   text-align: center;
   padding: 80px 24px;
   color: #64748b;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(241, 245, 249, 0.65));
+  border-radius: var(--radius-md);
+  margin: 12px;
 }
 
 .empty-icon {
@@ -685,7 +695,7 @@ select:disabled {
   border: 1px solid #fecaca;
   color: #dc2626;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   margin-bottom: 16px;
   font-size: 14px;
 }
@@ -739,7 +749,7 @@ select:disabled {
   height: 36px;
   padding: 0 8px;
   border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   background: #fff;
   color: #111827;
   cursor: pointer;
