@@ -161,9 +161,7 @@ service cloud.firestore {
     }
 
     function loanExternalReadonlyOnUpdate() {
-      return !("paymentStatus" in resource.data)
-        || request.resource.data.paymentStatus == resource.data.paymentStatus
-        && request.resource.data.asaasPaymentId == resource.data.asaasPaymentId
+      return request.resource.data.asaasPaymentId == resource.data.asaasPaymentId
         && request.resource.data.pixQrCode == resource.data.pixQrCode
         && request.resource.data.pixCopyPaste == resource.data.pixCopyPaste
         && request.resource.data.externalPaymentProvider == resource.data.externalPaymentProvider;

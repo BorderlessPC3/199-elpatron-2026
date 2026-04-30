@@ -75,18 +75,33 @@ export async function updatePaymentInstallments(
   userId: string,
   id: string,
   installments: PaymentInstallment[],
-  status: PaymentStatus,
 ): Promise<void> {
   requireAuthPathUid(userId);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayTime = today.getTime();
+
+  const allPaid = installments.length > 0 && installments.every((installment) => installment.paid);
+  const hasOverdue = installments.some((installment) => {
+    if (installment.paid) return false;
+    return new Date(`${installment.dueDate}T00:00:00`).getTime() < todayTime;
+  });
+
+  const status: PaymentStatus = allPaid ? "paid" : hasOverdue ? "late" : "pending";
+  const paymentStatus: "pending" | "paid" | "overdue" = allPaid
+    ? "paid"
+    : hasOverdue
+      ? "overdue"
+      : "pending";
   const amount = installments.reduce((sum, installment) => sum + installment.amount, 0);
   await updateDoc(loanDocument(userId, id), {
     installments,
     installmentCount: installments.length,
     amount,
     status,
+    paymentStatus,
     updatedAt: new Date(),
   });
-  /* Confirmação de pagamento: Cloud Function onUpdate em loans detecta parcela paga. */
 }
 
 export async function ensureClientExistsForPayment(

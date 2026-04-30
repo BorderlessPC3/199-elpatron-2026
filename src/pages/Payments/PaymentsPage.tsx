@@ -20,7 +20,6 @@ import appLogo from "../../assets/logo-elpatron.png";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToastHelpers } from "../../contexts/ToastContext";
 import { usePayments } from "../../hooks";
-import { createPixCharge } from "../../services/asaasService";
 import type {
   Payment,
 } from "../../types/payment";
@@ -35,6 +34,11 @@ interface PaymentStatusInfo {
   key: "late" | "on_time";
   label: string;
   detail: string;
+}
+
+interface PendingInstallmentConfirmation {
+  payment: Payment;
+  installmentId: string;
 }
 
 const loadImageAsDataUrl = async (imageUrl: string): Promise<string> => {
@@ -68,10 +72,12 @@ function PaymentsPage() {
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmAction, setConfirmAction] =
     useState<(() => Promise<void>) | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState("Confirmar ação");
+  const [confirmLabel, setConfirmLabel] = useState("Confirmar");
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
-  const [pixModalPayment, setPixModalPayment] = useState<Payment | null>(null);
+  const [installmentsModalPayment, setInstallmentsModalPayment] = useState<Payment | null>(null);
 
   const { user } = useAuth();
   const { showSuccess, showError } = useToastHelpers();
@@ -86,6 +92,7 @@ function PaymentsPage() {
     loadClients,
     savePaymentWithClient,
     removePayment,
+    updatePaymentInstallments,
   } = usePayments();
 
   useEffect(() => {
@@ -305,14 +312,11 @@ function PaymentsPage() {
     if (!user) return;
 
     try {
-      const loanId = await savePaymentWithClient(
+      await savePaymentWithClient(
         user.uid,
         paymentData,
         editingPayment?.id,
       );
-      if (!editingPayment && loanId) {
-        await createPixCharge({ userId: user.uid, loanId });
-      }
       if (editingPayment) {
         showSuccess(
           "Pagamento Atualizado",
@@ -320,8 +324,8 @@ function PaymentsPage() {
         );
       } else {
         showSuccess(
-          "Pagamento Criado",
-          `Pagamento de ${paymentData.clientName} criado com cobrança PIX`,
+          "Empréstimo Criado",
+          `Empréstimo de ${paymentData.clientName} criado com sucesso`,
         );
       }
 
@@ -337,6 +341,8 @@ function PaymentsPage() {
 
   const handleDeletePayment = async (id: string) => {
     const paymentToDelete = payments.find((p) => p.id === id);
+    setConfirmTitle("Excluir Pagamento");
+    setConfirmLabel("Excluir");
     setConfirmMessage(
       `Tem certeza que deseja excluir o pagamento de ${paymentToDelete?.clientName || "este cliente"}?`,
     );
@@ -365,8 +371,74 @@ function PaymentsPage() {
     setConfirmOpen(true);
   };
 
-  const openPixModal = (payment: Payment) => {
-    setPixModalPayment(payment);
+  const requestInstallmentPaymentConfirmation = ({
+    payment,
+    installmentId,
+  }: PendingInstallmentConfirmation) => {
+    const installment = payment.installments.find((item) => item.id === installmentId);
+    if (!installment || installment.paid) return;
+
+    setConfirmTitle("Confirmar pagamento");
+    setConfirmLabel("Confirmar");
+    setConfirmMessage(
+      [
+        "Tem certeza que deseja marcar esta parcela como PAGA?",
+        `Data: ${formatDate(installment.dueDate)}`,
+        `Valor: ${formatCurrency(installment.amount)}`,
+      ].join("\n"),
+    );
+    setConfirmAction(() => async () => {
+      await handleConfirmInstallmentPayment(payment, installmentId);
+      setConfirmOpen(false);
+    });
+    setConfirmOpen(true);
+  };
+
+  const openInstallmentsModal = (payment: Payment) => {
+    setInstallmentsModalPayment(payment);
+  };
+
+  const handleConfirmInstallmentPayment = async (
+    payment: Payment,
+    installmentId: string,
+  ) => {
+    if (!user) return;
+    const installmentToConfirm = payment.installments.find(
+      (installment) => installment.id === installmentId,
+    );
+    if (!installmentToConfirm || installmentToConfirm.paid) return;
+
+    const paidAt = new Date().toISOString();
+    const updatedInstallments = payment.installments.map((installment) =>
+      installment.id === installmentId
+        ? { ...installment, paid: true, paidAt }
+        : installment,
+    );
+    const updatedPayment: Payment = {
+      ...payment,
+      installments: updatedInstallments,
+    };
+    // Atualização otimista no modal para feedback imediato.
+    setInstallmentsModalPayment(updatedPayment);
+
+    try {
+      setError("");
+      await updatePaymentInstallments(user.uid, payment.id, updatedInstallments);
+      try {
+        await exportPaymentPDF(updatedPayment);
+      } catch {
+        showError("Erro ao gerar PDF", "Não foi possível gerar o PDF automaticamente");
+      }
+      await loadPayments(user.uid);
+      setInstallmentsModalPayment(updatedPayment);
+      showSuccess("Parcela marcada como paga", `Cliente: ${payment.clientName}`);
+      showSuccess("PDF gerado com sucesso", "Comprovante atualizado disponível para envio");
+    } catch (err: unknown) {
+      const errorMessage = "Erro ao confirmar pagamento: " + getErrorMessage(err);
+      setError(errorMessage);
+      setInstallmentsModalPayment(payment);
+      showError("Erro na Confirmação", errorMessage);
+    }
   };
 
   const exportPaymentPDF = async (payment: Payment) => {
@@ -409,50 +481,31 @@ function PaymentsPage() {
 
     y += 4;
     doc.setFontSize(12);
-    doc.text("Parcelas (Data / Valor + Status)", margin, y);
+    doc.text("Parcelas (Data - Valor - Status)", margin, y);
     y += 8;
 
-    const installmentsPerBlock = 3;
-    const rowTopHeight = 9;
-    const rowBottomHeight = 12;
-    const blockHeight = rowTopHeight + rowBottomHeight + 6;
+    doc.setFontSize(10);
+    for (let i = 0; i < payment.installments.length; i += 1) {
+      const installment = payment.installments[i];
+      const statusLabel = installment.paid ? "PAGO" : "PENDENTE";
+      const rowText = `${i + 1}. ${formatDate(installment.dueDate)} - ${formatCurrency(
+        installment.amount,
+      )} - ${statusLabel}`;
 
-    for (let i = 0; i < payment.installments.length; i += installmentsPerBlock) {
-      const block = payment.installments.slice(i, i + installmentsPerBlock);
-      const cellWidth = contentWidth / block.length;
-
-      if (y + blockHeight > pageHeight - 18) {
+      if (y > pageHeight - 16) {
         doc.addPage();
         y = 18;
       }
 
-      block.forEach((installment, index) => {
-        const x = margin + index * cellWidth;
-        const dateLabel = formatDate(installment.dueDate);
-        const statusLabel = installment.paid ? "Pago" : "Pendente";
-        const valueAndStatus = `${formatCurrency(installment.amount)} | ${statusLabel}`;
-
-        doc.setDrawColor(200, 200, 200);
-        doc.rect(x, y, cellWidth, rowTopHeight);
-        doc.rect(x, y + rowTopHeight, cellWidth, rowBottomHeight);
-
-        doc.setFontSize(9);
-        doc.setTextColor(33, 37, 41);
-        doc.text(dateLabel, x + cellWidth / 2, y + 6, { align: "center" });
-
-        doc.setFontSize(9);
-        if (installment.paid) {
-          doc.setTextColor(22, 163, 74);
-        } else {
-          doc.setTextColor(217, 119, 6);
-        }
-        const wrapped = doc.splitTextToSize(valueAndStatus, cellWidth - 4);
-        doc.text(wrapped.slice(0, 2), x + 2, y + rowTopHeight + 5);
-      });
-
-      doc.setTextColor(33, 37, 41);
-      y += blockHeight;
+      if (installment.paid) {
+        doc.setTextColor(22, 163, 74);
+      } else {
+        doc.setTextColor(220, 38, 38);
+      }
+      doc.text(rowText, margin, y, { maxWidth: contentWidth });
+      y += 7;
     }
+    doc.setTextColor(33, 37, 41);
 
     const fileName = `pagamento-${payment.clientName.replace(/\s+/g, "-").toLowerCase()}-${
       new Date().toISOString().split("T")[0]
@@ -721,10 +774,10 @@ function PaymentsPage() {
                     <button
                       type="button"
                       className="btn-link"
-                      onClick={() => openPixModal(payment)}
+                      onClick={() => openInstallmentsModal(payment)}
                       disabled={loading}
                     >
-                      Ver cobrança PIX
+                      Gerenciar parcelas
                     </button>
                   </div>
                 </td>
@@ -740,7 +793,7 @@ function PaymentsPage() {
                         type="button"
                         className={`status-display-btn ${statusInfo.key}`}
                         disabled
-                        title="Status sincronizado automaticamente via webhook Asaas"
+                        title="Status calculado com base nas parcelas"
                       >
                         <span>{statusInfo.label}</span>
                         {statusInfo.key === "late" && (
@@ -805,10 +858,10 @@ function PaymentsPage() {
 
         {confirmOpen && (
           <ConfirmModal
-            title="Excluir Pagamento"
+            title={confirmTitle}
             message={confirmMessage}
             loading={confirmLoading}
-            confirmLabel="Excluir"
+            confirmLabel={confirmLabel}
             cancelLabel="Cancelar"
             onConfirm={() => {
               if (confirmAction) confirmAction();
@@ -925,47 +978,75 @@ function PaymentsPage() {
         />
       )}
 
-      {pixModalPayment && (
+      {installmentsModalPayment && (
         <div
           className="modal-overlay"
           onClick={() => {
-            setPixModalPayment(null);
+            setInstallmentsModalPayment(null);
           }}
         >
           <div className="installments-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Cobrança PIX - {pixModalPayment.clientName}</h3>
+            <h3>Parcelas - {installmentsModalPayment.clientName}</h3>
             <div className="status-update-help">
               <p>
-                Status da cobrança: <strong>{pixModalPayment.paymentStatus ?? "pending"}</strong>
+                Status atual:{" "}
+                <strong>
+                  {installmentsModalPayment.paymentStatus === "paid"
+                    ? "Pago"
+                    : installmentsModalPayment.paymentStatus === "overdue"
+                      ? "Atrasado"
+                      : "Pendente"}
+                </strong>
               </p>
               <p>
-                Provider: <strong>{pixModalPayment.externalPaymentProvider ?? "asaas"}</strong>
+                Marque manualmente a parcela como paga para gerar o PDF automático.
               </p>
             </div>
-            {pixModalPayment.pixQrCode ? (
-              <img
-                src={pixModalPayment.pixQrCode}
-                alt="QR Code PIX"
-                style={{ width: "100%", maxWidth: "320px", borderRadius: "8px" }}
-              />
-            ) : (
-              <p>QR Code ainda não disponível para esta cobrança.</p>
-            )}
             <div className="form-group">
-              <label>Código copia e cola</label>
-              <textarea
-                readOnly
-                value={pixModalPayment.pixCopyPaste ?? ""}
-                rows={4}
-                style={{ width: "100%" }}
-              />
+              {installmentsModalPayment.installments.map((installment) => (
+                <div
+                  key={installment.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <span>
+                    {formatDate(installment.dueDate)} - {formatCurrency(installment.amount)} -{" "}
+                    {installment.paid ? "PAGO" : "PENDENTE"}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={loading || installment.paid}
+                    onClick={() =>
+                      requestInstallmentPaymentConfirmation({
+                        payment: installmentsModalPayment,
+                        installmentId: installment.id,
+                      })
+                    }
+                  >
+                    {installment.paid ? "Confirmado" : "Marcar como pago"}
+                  </button>
+                </div>
+              ))}
             </div>
             <div className="installments-modal-actions">
               <button
                 type="button"
+                className="btn-primary"
+                onClick={() => exportPaymentPDF(installmentsModalPayment)}
+              >
+                Gerar PDF para envio
+              </button>
+              <button
+                type="button"
                 className="btn-secondary"
                 onClick={() => {
-                  setPixModalPayment(null);
+                  setInstallmentsModalPayment(null);
                 }}
               >
                 Fechar

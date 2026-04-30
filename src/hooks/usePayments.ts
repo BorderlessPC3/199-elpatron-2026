@@ -77,11 +77,10 @@ export function usePayments() {
       userId: string,
       id: string,
       installments: Parameters<typeof updatePaymentInstallments>[2],
-      status: Parameters<typeof updatePaymentInstallments>[3],
     ) => {
       try {
         setError("");
-        await updatePaymentInstallments(userId, id, installments, status);
+        await updatePaymentInstallments(userId, id, installments);
       } catch (err: unknown) {
         const message = getErrorMessage(err);
         setError(`Erro ao atualizar parcelas: ${message}`);
