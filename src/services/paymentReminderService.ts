@@ -1,6 +1,22 @@
 import { getDocs, query, where } from "firebase/firestore";
+import { parseLocalDate } from "../utils/paymentNormalizer";
 import { loansItemsCollection } from "./firestorePaths";
 import type { Toast } from "../types/toast";
+
+const MS_PER_DAY = 86400000;
+
+function startOfLocalToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** Diferença em dias civis (due − today): negativo = atrasado, 0 = hoje, positivo = futuro. */
+function calendarDaysFromToday(dueYmd: string): number {
+  const due0 = parseLocalDate(dueYmd.trim());
+  const today0 = startOfLocalToday();
+  return Math.round((due0.getTime() - today0.getTime()) / MS_PER_DAY);
+}
 
 interface PaymentReminder {
   id: string;
@@ -31,31 +47,31 @@ export class PaymentReminderService {
 
       const querySnapshot = await getDocs(q);
       const reminders: PaymentReminder[] = [];
-      const today = new Date();
-      const threeDaysFromNow = new Date(
-        today.getTime() + 3 * 24 * 60 * 60 * 1000
-      );
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        const dueDate = new Date(data.date);
+        const dateStr = String(data.date ?? "");
+        if (!dateStr.trim()) return;
 
-        if (dueDate <= threeDaysFromNow) {
-          const isOverdue = dueDate < today;
+        const dayDiff = calendarDaysFromToday(dateStr);
+        /* Atrasados ou vencimento em até 3 dias (inclusive), em dias civis */
+        if (dayDiff > 3) return;
 
-          reminders.push({
-            id: doc.id,
-            clientName: data.clientName,
-            amount: data.amount,
-            dueDate: data.date,
-            description: data.description || "Pagamento pendente",
-            status: isOverdue ? "overdue" : "pending",
-          });
-        }
+        const isOverdue = dayDiff < 0;
+
+        reminders.push({
+          id: doc.id,
+          clientName: data.clientName,
+          amount: data.amount,
+          dueDate: dateStr,
+          description: data.description || "Pagamento pendente",
+          status: isOverdue ? "overdue" : "pending",
+        });
       });
 
       return reminders.sort(
-        (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        (a, b) =>
+          parseLocalDate(a.dueDate).getTime() - parseLocalDate(b.dueDate).getTime(),
       );
     } catch (error) {
       console.error("Erro ao buscar lembretes de pagamento:", error);
@@ -68,35 +84,30 @@ export class PaymentReminderService {
     resolveAction?: ReminderActionResolver,
   ): Omit<Toast, "id" | "createdAt">[] {
     return reminders.map((reminder) => {
-      const dueDate = new Date(reminder.dueDate);
-      const today = new Date();
-      const isOverdue = dueDate < today;
-      const daysDiff = Math.ceil(
-        (dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-      );
+      const dayDiff = calendarDaysFromToday(reminder.dueDate);
 
       let title: string;
       let message: string;
       let type: Toast["type"];
 
-      if (isOverdue) {
-        const overdueDays = Math.abs(daysDiff);
+      if (dayDiff < 0) {
+        const overdueDays = Math.max(1, -dayDiff);
         title = "Pagamento Vencido";
         message = `${reminder.clientName} - ${this.formatCurrency(
-          reminder.amount
+          reminder.amount,
         )} (${overdueDays} dia${overdueDays > 1 ? "s" : ""} em atraso)`;
         type = "error";
-      } else if (daysDiff === 0) {
+      } else if (dayDiff === 0) {
         title = "Pagamento Vence Hoje";
         message = `${reminder.clientName} - ${this.formatCurrency(
-          reminder.amount
+          reminder.amount,
         )}`;
         type = "warning";
       } else {
         title = "Pagamento Próximo do Vencimento";
         message = `${reminder.clientName} - ${this.formatCurrency(
-          reminder.amount
-        )} (vence em ${daysDiff} dia${daysDiff > 1 ? "s" : ""})`;
+          reminder.amount,
+        )} (vence em ${dayDiff} dia${dayDiff > 1 ? "s" : ""})`;
         type = "warning";
       }
 

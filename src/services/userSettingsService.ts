@@ -11,6 +11,9 @@ const mergeDefaults = (data: Partial<UserSettings>): UserSettings => ({
   ...data,
   autoNotifications:
     data.autoNotifications ?? defaultUserSettings.autoNotifications,
+  notificationsWhatsappNumber:
+    data.notificationsWhatsappNumber ??
+    defaultUserSettings.notificationsWhatsappNumber,
 });
 
 export async function getUserSettings(userId: string): Promise<UserSettings> {

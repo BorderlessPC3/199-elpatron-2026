@@ -1,4 +1,9 @@
-import { faTimes } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCircleXmark,
+  faTimes,
+  faUserPen,
+  faUserPlus,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -145,16 +150,27 @@ function ClientModal({
 
   const modal = (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{client ? "Editar Cliente" : "Novo Cliente"}</h2>
-          <button className="modal-close" onClick={onClose} disabled={loading}>
-            <FontAwesomeIcon icon={faTimes} />
-          </button>
-        </div>
+      <div
+        className="modal-content client-modal-dialog"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <form onSubmit={handleSubmit} className="client-modal-form">
+          <div className="modal-header">
+            <h2 className="modal-title-with-icon">
+              <FontAwesomeIcon
+                icon={client ? faUserPen : faUserPlus}
+                className="modal-title-icon"
+                aria-hidden
+              />
+              {client ? "Editar Cliente" : "Novo Cliente"}
+            </h2>
+            <button className="modal-close" onClick={onClose} disabled={loading}>
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
+          </div>
 
-        <form onSubmit={handleSubmit} className="client-form">
-          <div className="form-grid">
+          <div className="modal-body-scroll">
+            <div className="form-grid">
             <div className="form-group">
               <label htmlFor="name">Nome *</label>
               <input
@@ -252,20 +268,22 @@ function ClientModal({
             </div>
 
             {/* Campo de empréstimo removido - será calculado automaticamente baseado nos pagamentos */}
+            </div>
           </div>
 
           <div className="modal-footer">
             <button
               type="button"
-              className="btn-secondary"
+              className={client ? "btn-secondary" : "btn-cancel-danger"}
               onClick={onClose}
               disabled={loading}
             >
+              <FontAwesomeIcon icon={faCircleXmark} aria-hidden />
               Cancelar
             </button>
             <button
               type="submit"
-              className="btn-primary"
+              className="btn-primary btn-with-icon"
               disabled={loading}
               style={{
                 opacity: loading ? 0.7 : 1,
@@ -292,7 +310,10 @@ function ClientModal({
               ) : client ? (
                 "Salvar Alterações"
               ) : (
-                "Criar Cliente"
+                <>
+                  <FontAwesomeIcon icon={faUserPlus} aria-hidden />
+                  Criar Cliente
+                </>
               )}
             </button>
           </div>

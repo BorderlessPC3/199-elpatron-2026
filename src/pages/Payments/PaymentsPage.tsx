@@ -2,11 +2,14 @@ import type React from "react";
 
 import {
   faChartBar,
+  faCircleCheck,
+  faCircleInfo,
   faClock,
   faCreditCard,
   faEdit,
   faExclamationTriangle,
   faFilePdf,
+  faList,
   faMoneyBill,
   faPlus,
   faSearch,
@@ -15,6 +18,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useMemo, useState } from "react";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useSearchParams } from "react-router-dom";
 import appLogo from "../../assets/logo-elpatron.png";
 import { useAuth } from "../../contexts/AuthContext";
@@ -312,7 +316,7 @@ function PaymentsPage() {
     if (!user) return;
 
     try {
-      await savePaymentWithClient(
+      const savedId = await savePaymentWithClient(
         user.uid,
         paymentData,
         editingPayment?.id,
@@ -331,6 +335,41 @@ function PaymentsPage() {
 
       await loadPayments(user.uid);
       await loadClients(user.uid);
+
+      if (!editingPayment?.id) {
+        const now = new Date();
+        const pdfPayment: Payment = {
+          id: savedId,
+          userId: user.uid,
+          clientName: paymentData.clientName,
+          clientEmail: paymentData.clientEmail,
+          amount: paymentData.amount,
+          loanAmount: paymentData.loanAmount,
+          firstReceiveDate: paymentData.firstReceiveDate,
+          installmentCount: paymentData.installmentCount,
+          installments: paymentData.installments,
+          date: paymentData.date,
+          status: paymentData.status,
+          paymentMethod: paymentData.paymentMethod,
+          description: paymentData.description,
+          paymentStatus: "pending",
+          createdAt: now,
+          updatedAt: now,
+        };
+        try {
+          await exportPaymentPDF(pdfPayment);
+          showSuccess(
+            "PDF gerado",
+            "O comprovante foi baixado automaticamente.",
+          );
+        } catch (pdfErr: unknown) {
+          showError(
+            "PDF",
+            `Empréstimo salvo, mas o PDF falhou: ${getErrorMessage(pdfErr)}`,
+          );
+        }
+      }
+
       setIsModalOpen(false);
     } catch (err: unknown) {
       const errorMessage = "Erro ao salvar pagamento: " + getErrorMessage(err);
@@ -431,8 +470,10 @@ function PaymentsPage() {
       }
       await loadPayments(user.uid);
       setInstallmentsModalPayment(updatedPayment);
-      showSuccess("Parcela marcada como paga", `Cliente: ${payment.clientName}`);
-      showSuccess("PDF gerado com sucesso", "Comprovante atualizado disponível para envio");
+      showSuccess(
+        "Parcela e PDF",
+        `Pagamento registrado para ${payment.clientName}. O comprovante foi baixado.`,
+      );
     } catch (err: unknown) {
       const errorMessage = "Erro ao confirmar pagamento: " + getErrorMessage(err);
       setError(errorMessage);
@@ -445,67 +486,106 @@ function PaymentsPage() {
     const doc = new jsPDF("p", "mm", "a4");
     const margin = 14;
     const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const contentWidth = pageWidth - margin * 2;
-    let y = 18;
 
     const paidCount = payment.installments.filter((item) => item.paid).length;
     const pendingCount = payment.installments.length - paidCount;
+    const emission = new Date().toLocaleString("pt-BR");
 
     try {
       const logoDataUrl = await loadImageAsDataUrl(appLogo);
-      doc.addImage(logoDataUrl, "PNG", pageWidth - 50, 10, 36, 20);
+      doc.addImage(logoDataUrl, "PNG", pageWidth - 44, 10, 32, 18);
     } catch {
       // Se a logo falhar, o PDF continua sendo gerado normalmente.
     }
 
-    doc.setFontSize(16);
-    doc.text("Resumo de empréstimo", margin, y);
-    y += 10;
+    doc.setTextColor(30, 41, 59);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(17);
+    doc.text("Resumo de empréstimo", margin, 22);
 
-    doc.setFontSize(11);
-    const metadata = [
-      `Cliente: ${payment.clientName}`,
-      `Email: ${payment.clientEmail}`,
-      `Valor emprestado: ${formatCurrency(payment.loanAmount)}`,
-      `Primeiro recebimento: ${formatDate(payment.firstReceiveDate)}`,
-      `Parcelas: ${payment.installments.length}`,
-      `Pagas: ${paidCount} | Pendentes: ${pendingCount}`,
-      `Data de emissao: ${new Date().toLocaleString("pt-BR")}`,
-    ];
+    let nextY = 28;
+    const lineHeight = 5.5;
+    const gapAfterLabel = 3;
 
-    metadata.forEach((line) => {
-      doc.text(line, margin, y);
-      y += 6;
-    });
+    const addInfoField = (label: string, value: string) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      const labelText = `${label}:`;
+      doc.text(labelText, margin, nextY);
+      const labelW = doc.getTextWidth(labelText);
+      const valueX = margin + labelW + gapAfterLabel;
+      const valueMaxW = pageWidth - margin - valueX;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(30, 41, 59);
+      const valueLines = doc.splitTextToSize(value, Math.max(24, valueMaxW));
+      doc.text(valueLines, valueX, nextY);
+      nextY += Math.max(lineHeight, valueLines.length * lineHeight) + 2.5;
+    };
 
-    y += 4;
+    addInfoField("Cliente", payment.clientName);
+    addInfoField("E-mail", payment.clientEmail);
+    addInfoField("Valor emprestado", formatCurrency(payment.loanAmount));
+    addInfoField("Primeiro recebimento", formatDate(payment.firstReceiveDate));
+    addInfoField("Total de parcelas", String(payment.installments.length));
+    addInfoField("Parcelas pagas", String(paidCount));
+    addInfoField("Parcelas pendentes", String(pendingCount));
+    addInfoField("Data de emissão", emission);
+
+    nextY += 4;
+
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("Parcelas (Data - Valor - Status)", margin, y);
-    y += 8;
+    doc.setTextColor(30, 41, 59);
+    doc.text("Cronograma de parcelas", margin, nextY);
+    nextY += 4;
 
-    doc.setFontSize(10);
-    for (let i = 0; i < payment.installments.length; i += 1) {
-      const installment = payment.installments[i];
-      const statusLabel = installment.paid ? "PAGO" : "PENDENTE";
-      const rowText = `${i + 1}. ${formatDate(installment.dueDate)} - ${formatCurrency(
-        installment.amount,
-      )} - ${statusLabel}`;
+    const instBody = payment.installments.map((inst, i) => [
+      `${i + 1}ª`,
+      formatDate(inst.dueDate),
+      formatCurrency(inst.amount),
+      inst.paid ? "Pago" : "Pendente",
+    ]);
 
-      if (y > pageHeight - 16) {
-        doc.addPage();
-        y = 18;
-      }
-
-      if (installment.paid) {
-        doc.setTextColor(22, 163, 74);
-      } else {
-        doc.setTextColor(220, 38, 38);
-      }
-      doc.text(rowText, margin, y, { maxWidth: contentWidth });
-      y += 7;
-    }
-    doc.setTextColor(33, 37, 41);
+    autoTable(doc, {
+      startY: nextY,
+      head: [["Parcela", "Vencimento", "Valor (R$)", "Situação"]],
+      body: instBody,
+      theme: "grid",
+      headStyles: {
+        fillColor: [79, 70, 229],
+        textColor: 255,
+        fontStyle: "bold",
+        fontSize: 10,
+        halign: "center",
+      },
+      styles: {
+        fontSize: 9.5,
+        cellPadding: 3.5,
+        lineColor: [226, 232, 240],
+        lineWidth: 0.15,
+        valign: "middle",
+      },
+      columnStyles: {
+        0: { halign: "center", cellWidth: 22 },
+        1: { halign: "center", cellWidth: 36 },
+        2: { halign: "right", cellWidth: 36 },
+        3: { halign: "center", cellWidth: 28 },
+      },
+      didParseCell: (data) => {
+        if (data.section !== "body") return;
+        const inst = payment.installments[data.row.index];
+        if (!inst) return;
+        if (inst.paid) {
+          data.cell.styles.fillColor = [209, 250, 229];
+          data.cell.styles.textColor = [5, 122, 85];
+        } else {
+          data.cell.styles.fillColor = [254, 226, 226];
+          data.cell.styles.textColor = [185, 28, 28];
+        }
+      },
+    });
 
     const fileName = `pagamento-${payment.clientName.replace(/\s+/g, "-").toLowerCase()}-${
       new Date().toISOString().split("T")[0]
@@ -986,41 +1066,53 @@ function PaymentsPage() {
           }}
         >
           <div className="installments-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Parcelas - {installmentsModalPayment.clientName}</h3>
+            <h3 className="installments-modal-title">
+              <FontAwesomeIcon icon={faList} aria-hidden />
+              Parcelas — {installmentsModalPayment.clientName}
+            </h3>
             <div className="status-update-help">
-              <p>
-                Status atual:{" "}
-                <strong>
-                  {installmentsModalPayment.paymentStatus === "paid"
-                    ? "Pago"
-                    : installmentsModalPayment.paymentStatus === "overdue"
-                      ? "Atrasado"
-                      : "Pendente"}
-                </strong>
+              <p className="installments-status-line">
+                <FontAwesomeIcon icon={faCircleInfo} aria-hidden />
+                <span>
+                  Status atual:{" "}
+                  <strong>
+                    {installmentsModalPayment.paymentStatus === "paid"
+                      ? "Pago"
+                      : installmentsModalPayment.paymentStatus === "overdue"
+                        ? "Atrasado"
+                        : "Pendente"}
+                  </strong>
+                </span>
               </p>
               <p>
                 Marque manualmente a parcela como paga para gerar o PDF automático.
               </p>
             </div>
-            <div className="form-group">
+            <div className="form-group installments-manage-list">
               {installmentsModalPayment.installments.map((installment) => (
                 <div
                   key={installment.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "12px",
-                    marginBottom: "8px",
-                  }}
+                  className={`installment-manage-row ${installment.paid ? "is-paid" : "is-pending"}`}
                 >
-                  <span>
-                    {formatDate(installment.dueDate)} - {formatCurrency(installment.amount)} -{" "}
-                    {installment.paid ? "PAGO" : "PENDENTE"}
+                  <span className="installment-manage-row-text">
+                    <FontAwesomeIcon
+                      icon={installment.paid ? faCircleCheck : faClock}
+                      className="installment-row-status-icon"
+                      aria-hidden
+                    />
+                    <span>
+                      {formatDate(installment.dueDate)} —{" "}
+                      {formatCurrency(installment.amount)} —{" "}
+                      {installment.paid ? "PAGO" : "PENDENTE"}
+                    </span>
                   </span>
                   <button
                     type="button"
-                    className="btn-secondary"
+                    className={
+                      installment.paid
+                        ? "btn-installment-confirmed"
+                        : "btn-installment-pending"
+                    }
                     disabled={loading || installment.paid}
                     onClick={() =>
                       requestInstallmentPaymentConfirmation({

@@ -18,6 +18,10 @@ export interface OutboundMessage {
   type: "reminder" | "overdue" | "confirmation";
 }
 
+function isWhatsappConfigured(): boolean {
+  return Boolean(process.env.WHATSAPP_SEND_URL?.trim());
+}
+
 export async function logOutbound(
   data: OutboundMessage,
   mockSend = true,
@@ -39,13 +43,42 @@ export async function logOutbound(
 }
 
 /**
- * Ponto de extensão: substitua por Twilio / Z-API.
+ * Envia via HTTP quando `WHATSAPP_SEND_URL` está definido (ex.: webhook Z-API / Evolution).
+ * Body JSON inclui `to`, `message` e aliases comuns; ajuste o proxy se o teu provedor exigir outro formato.
  */
 export async function sendWhatsapp(phone: string, body: string): Promise<void> {
-  // eslint-disable-next-line no-console
-  console.log(`[WhatsApp API placeholder] to=${phone}`);
-  await new Promise((r) => setTimeout(r, 10));
-  void body;
+  const url = process.env.WHATSAPP_SEND_URL?.trim();
+  if (!url) {
+    // eslint-disable-next-line no-console
+    console.log(`[WhatsApp mock] to=${phone}`);
+    await new Promise((r) => setTimeout(r, 10));
+    return;
+  }
+
+  const token = process.env.WHATSAPP_SEND_TOKEN?.trim();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) {
+    headers.Authorization = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+  }
+
+  const payload = {
+    to: phone,
+    phone,
+    message: body,
+    text: body,
+    body,
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`WhatsApp HTTP ${res.status}: ${errText.slice(0, 200)}`);
+  }
 }
 
 export async function sendSms(phone: string, body: string): Promise<void> {
@@ -59,10 +92,11 @@ export async function dispatchMessage(
   data: OutboundMessage,
   preferSms = false,
 ): Promise<void> {
-  await logOutbound(data);
   if (preferSms) {
+    await logOutbound(data, true);
     await sendSms(data.toPhone, data.body);
-  } else {
-    await sendWhatsapp(data.toPhone, data.body);
+    return;
   }
+  await logOutbound(data, !isWhatsappConfigured());
+  await sendWhatsapp(data.toPhone, data.body);
 }

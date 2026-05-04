@@ -1,6 +1,19 @@
-import { faChevronDown, faTimes } from "@fortawesome/free-solid-svg-icons";
+import {
+  faAlignLeft,
+  faBuilding,
+  faCircleXmark,
+  faEnvelope,
+  faFileInvoiceDollar,
+  faFloppyDisk,
+  faHandHoldingDollar,
+  faList,
+  faPenToSquare,
+  faTableCells,
+  faChevronDown,
+  faTimes,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type {
   Payment,
@@ -94,6 +107,41 @@ function PaymentModal({
     Record<string, ValidationState>
   >({});
   const [isTyping, setIsTyping] = useState(false);
+  const clientInputRef = useRef<HTMLInputElement>(null);
+  const [suggestDropdownRect, setSuggestDropdownRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const updateSuggestDropdownRect = useCallback(() => {
+    const el = clientInputRef.current;
+    if (!el || !showClientSuggestions || clientSuggestions.length === 0) {
+      setSuggestDropdownRect(null);
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    setSuggestDropdownRect({
+      top: r.bottom + 6,
+      left: r.left,
+      width: r.width,
+    });
+  }, [showClientSuggestions, clientSuggestions]);
+
+  useLayoutEffect(() => {
+    updateSuggestDropdownRect();
+  }, [updateSuggestDropdownRect]);
+
+  useEffect(() => {
+    if (!showClientSuggestions || clientSuggestions.length === 0) return;
+    const onWin = () => updateSuggestDropdownRect();
+    window.addEventListener("resize", onWin);
+    window.addEventListener("scroll", onWin, true);
+    return () => {
+      window.removeEventListener("resize", onWin);
+      window.removeEventListener("scroll", onWin, true);
+    };
+  }, [showClientSuggestions, clientSuggestions, updateSuggestDropdownRect]);
 
   useEffect(() => {
     if (payment) {
@@ -321,6 +369,11 @@ function PaymentModal({
     setIsClientSelected(true);
     setShowClientSuggestions(false);
     setClientSuggestions([]);
+    setValidationState((prev) => ({
+      ...prev,
+      clientName: { isValid: true, message: "" },
+      clientEmail: { isValid: true, message: "" },
+    }));
 
     if (errors.clientName) {
       setErrors((prev) => ({ ...prev, clientName: "" }));
@@ -371,31 +424,80 @@ function PaymentModal({
     });
   };
 
+  const nameHasError =
+    Boolean(errors.clientName) ||
+    Boolean(
+      validationState.clientName &&
+        !validationState.clientName.isValid &&
+        validationState.clientName.message,
+    );
+  const emailHasError =
+    Boolean(errors.clientEmail) ||
+    Boolean(
+      validationState.clientEmail &&
+        !validationState.clientEmail.isValid &&
+        validationState.clientEmail.message,
+    );
+  const loanAmountHasError =
+    Boolean(errors.loanAmount) ||
+    Boolean(
+      validationState.loanAmount &&
+        !validationState.loanAmount.isValid &&
+        validationState.loanAmount.message,
+    );
+  const descriptionHasError =
+    Boolean(errors.description) ||
+    Boolean(
+      validationState.description &&
+        !validationState.description.isValid &&
+        validationState.description.message,
+    );
+
   const modal = (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{payment ? "Editar Empréstimo" : "Novo Empréstimo"}</h2>
-          <button className="modal-close" onClick={onClose} disabled={loading}>
-            <FontAwesomeIcon icon={faTimes} />
-          </button>
-        </div>
+      <div
+        className="modal-content payment-modal-dialog"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <form
+          onSubmit={handleSubmit}
+          className="payment-modal-form"
+          noValidate
+        >
+          <div className="modal-header">
+            <h2 className="modal-title-with-icon">
+              <FontAwesomeIcon
+                icon={payment ? faPenToSquare : faHandHoldingDollar}
+                className="modal-title-icon"
+                aria-hidden
+              />
+              {payment ? "Editar Empréstimo" : "Novo Empréstimo"}
+            </h2>
+            <button className="modal-close" onClick={onClose} disabled={loading}>
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
+          </div>
 
-        <form onSubmit={handleSubmit} className="payment-form">
-          <div className="form-grid">
+          <div className="modal-body-scroll" onScroll={updateSuggestDropdownRect}>
+            <div className="form-grid">
             <div className="form-group">
               <label htmlFor="clientName">Nome do Cliente *</label>
-              <div className="autocomplete-container">
+              <div
+                className={`autocomplete-container ${
+                  showClientSuggestions && clientSuggestions.length > 0
+                    ? "autocomplete-container--open"
+                    : ""
+                }`}
+              >
                 <input
+                  ref={clientInputRef}
                   type="text"
                   id="clientName"
                   name="clientName"
                   value={formData.clientName}
                   onChange={handleClientNameChange}
                   className={`autocomplete-input ${
-                    errors.clientName || !validationState.clientName?.isValid
-                      ? "error"
-                      : ""
+                    nameHasError ? "error" : ""
                   } ${isClientSelected ? "selected" : ""} ${
                     isTyping ? "typing" : ""
                   }`}
@@ -423,30 +525,11 @@ function PaymentModal({
                     <span>Buscando...</span>
                   </div>
                 )}
-                {showClientSuggestions && clientSuggestions.length > 0 && (
-                  <div className="autocomplete-suggestions">
-                    {clientSuggestions.map((client) => (
-                      <div
-                        key={client.id}
-                        className="suggestion-item"
-                        onClick={() => handleClientSelection(client)}
-                      >
-                        <div className="suggestion-name">{client.name}</div>
-                        <div className="suggestion-email">{client.email}</div>
-                        {client.company && (
-                          <div className="suggestion-company">
-                            {client.company}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-              {(errors.clientName || validationState.clientName) && (
-                <span
-                  className={`error-message ${validationState.clientName?.isValid ? "success" : ""}`}
-                >
+              {(errors.clientName ||
+                (validationState.clientName?.message &&
+                  !validationState.clientName.isValid)) && (
+                <span className="error-message">
                   {errors.clientName || validationState.clientName?.message}
                 </span>
               )}
@@ -460,15 +543,15 @@ function PaymentModal({
                 name="clientEmail"
                 value={formData.clientEmail}
                 onChange={handleChange}
-                className={`${errors.clientEmail || !validationState.clientEmail?.isValid ? "error" : ""} ${isClientSelected ? "readonly" : ""}`}
+                className={`${emailHasError ? "error" : ""} ${isClientSelected ? "readonly" : ""}`}
                 placeholder="Será preenchido automaticamente"
                 disabled={loading || isClientSelected}
                 readOnly={isClientSelected}
               />
-              {(errors.clientEmail || validationState.clientEmail) && (
-                <span
-                  className={`error-message ${validationState.clientEmail?.isValid ? "success" : ""}`}
-                >
+              {(errors.clientEmail ||
+                (validationState.clientEmail?.message &&
+                  !validationState.clientEmail.isValid)) && (
+                <span className="error-message">
                   {errors.clientEmail || validationState.clientEmail?.message}
                 </span>
               )}
@@ -482,18 +565,14 @@ function PaymentModal({
                 name="loanAmount"
                 value={formatCurrency(formData.loanAmount)}
                 onChange={handleChange}
-                className={
-                  errors.loanAmount || !validationState.loanAmount?.isValid
-                    ? "error"
-                    : ""
-                }
+                className={loanAmountHasError ? "error" : ""}
                 placeholder="R$ 0,00"
                 disabled={loading}
               />
-              {(errors.loanAmount || validationState.loanAmount) && (
-                <span
-                  className={`error-message ${validationState.loanAmount?.isValid ? "success" : ""}`}
-                >
+              {(errors.loanAmount ||
+                (validationState.loanAmount?.message &&
+                  !validationState.loanAmount.isValid)) && (
+                <span className="error-message">
                   {errors.loanAmount || validationState.loanAmount?.message}
                 </span>
               )}
@@ -532,13 +611,17 @@ function PaymentModal({
 
             <div className="form-group full-width">
               <div className="installments-header">
-                <label>Parcelas *</label>
+                <label className="label-with-icon">
+                  <FontAwesomeIcon icon={faList} aria-hidden />
+                  Parcelas *
+                </label>
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-secondary btn-with-icon"
                   onClick={handleGenerateInstallments}
                   disabled={loading}
                 >
+                  <FontAwesomeIcon icon={faTableCells} aria-hidden />
                   Gerar parcelas
                 </button>
               </div>
@@ -548,7 +631,7 @@ function PaymentModal({
               <div className="installments-list">
                 {formData.installments.map((installment, index) => (
                   <div key={installment.id} className="installment-item">
-                    <span className="installment-index">{index + 1}a</span>
+                    <span className="installment-index">{index + 1}ª</span>
                     <input
                       type="date"
                       value={installment.dueDate}
@@ -577,43 +660,44 @@ function PaymentModal({
             </div>
 
             <div className="form-group full-width">
-              <label htmlFor="description">Descrição (opcional)</label>
+              <label htmlFor="description" className="label-with-icon">
+                <FontAwesomeIcon icon={faAlignLeft} aria-hidden />
+                Descrição (opcional)
+              </label>
               <input
                 type="text"
                 id="description"
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
-                className={
-                  errors.description || !validationState.description?.isValid
-                    ? "error"
-                    : ""
-                }
+                className={descriptionHasError ? "error" : ""}
                 placeholder="Descrição do serviço ou produto"
                 disabled={loading}
               />
-              {(errors.description || validationState.description) && (
-                <span
-                  className={`error-message ${validationState.description?.isValid ? "success" : ""}`}
-                >
+              {(errors.description ||
+                (validationState.description?.message &&
+                  !validationState.description.isValid)) && (
+                <span className="error-message">
                   {errors.description || validationState.description?.message}
                 </span>
               )}
+            </div>
             </div>
           </div>
 
           <div className="modal-footer">
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-secondary btn-with-icon"
               onClick={onClose}
               disabled={loading}
             >
+              <FontAwesomeIcon icon={faCircleXmark} aria-hidden />
               Cancelar
             </button>
             <button
               type="submit"
-              className="btn-primary"
+              className="btn-primary btn-with-icon"
               disabled={loading}
               style={{
                 opacity: loading ? 0.7 : 1,
@@ -638,9 +722,15 @@ function PaymentModal({
                   Salvando...
                 </>
               ) : payment ? (
-                "Salvar Alterações"
+                <>
+                  <FontAwesomeIcon icon={faFloppyDisk} aria-hidden />
+                  Salvar Alterações
+                </>
               ) : (
-                "Criar Pagamento"
+                <>
+                  <FontAwesomeIcon icon={faFileInvoiceDollar} aria-hidden />
+                  Criar Pagamento
+                </>
               )}
             </button>
           </div>
@@ -650,7 +740,70 @@ function PaymentModal({
   );
 
   if (typeof document === "undefined") return null;
-  return createPortal(modal, document.body);
+
+  const clientSuggestDropdown =
+    showClientSuggestions &&
+    clientSuggestions.length > 0 &&
+    suggestDropdownRect
+      ? createPortal(
+          <div
+            className="autocomplete-suggestions autocomplete-suggestions--floating"
+            style={{
+              position: "fixed",
+              top: suggestDropdownRect.top,
+              left: suggestDropdownRect.left,
+              width: suggestDropdownRect.width,
+            }}
+            role="listbox"
+            aria-label="Clientes sugeridos"
+          >
+            <div className="autocomplete-suggestions-hint">
+              <span className="autocomplete-suggestions-hint-dot" aria-hidden />
+              Clientes encontrados
+            </div>
+            {clientSuggestions.map((client) => (
+              <button
+                key={client.id}
+                type="button"
+                className="suggestion-item"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleClientSelection(client)}
+              >
+                <span className="suggestion-avatar" aria-hidden>
+                  {client.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="suggestion-body">
+                  <span className="suggestion-name">{client.name}</span>
+                  <span className="suggestion-meta">
+                    <span className="suggestion-meta-item">
+                      <FontAwesomeIcon icon={faEnvelope} className="suggestion-meta-icon" />
+                      {client.email}
+                    </span>
+                    {client.company ? (
+                      <span className="suggestion-meta-item">
+                        <FontAwesomeIcon
+                          icon={faBuilding}
+                          className="suggestion-meta-icon"
+                        />
+                        {client.company}
+                      </span>
+                    ) : null}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return createPortal(
+    <>
+      {modal}
+      {clientSuggestDropdown}
+    </>,
+    document.body,
+  );
 }
 
 export default PaymentModal;

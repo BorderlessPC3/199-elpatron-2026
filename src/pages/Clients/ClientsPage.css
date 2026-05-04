@@ -69,7 +69,7 @@
   border: 1px solid var(--color-border);
   border-radius: 8px;
   font-size: 14px;
-  background: var(--color-surface);
+  background: #ffffff;
   color: var(--color-text);
   transition: all 0.2s ease;
 }
@@ -78,6 +78,7 @@
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+  background: #ffffff;
 }
 
 .search-box input::placeholder {
@@ -145,14 +146,17 @@
 .clients-table-container {
   background: var(--color-surface);
   border-radius: 16px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid var(--color-border);
   position: relative;
+  scrollbar-gutter: stable;
 }
 
 .clients-table {
   width: 100%;
+  min-width: 960px;
   border-collapse: collapse;
 }
 
@@ -276,6 +280,9 @@
 .actions {
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  padding-right: 4px;
 }
 
 .btn-action {
@@ -345,7 +352,7 @@
   }
 
   .clients-table {
-    min-width: 800px;
+    min-width: 960px;
   }
 }
 
@@ -633,6 +640,38 @@ select:disabled {
   height: 18px;
   cursor: pointer;
   accent-color: var(--color-primary);
+}
+
+.clients-table th:last-child,
+.clients-table td:last-child {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+  padding-right: 20px;
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  box-shadow: -8px 0 12px -8px rgba(15, 23, 42, 0.12);
+}
+
+.clients-table tbody tr:nth-child(even) td:last-child {
+  background: #f8fafc;
+}
+
+.clients-table tbody tr:nth-child(odd) td:last-child {
+  background: #ffffff;
+}
+
+.clients-table tbody tr:hover td:last-child {
+  background: #eef2f7;
+}
+
+.clients-table thead th:last-child {
+  background: var(--color-background);
+}
+
+.clients-table tr.selected td:last-child {
+  background: #e0f2fe !important;
 }
 
 /* Selected Row Styling */

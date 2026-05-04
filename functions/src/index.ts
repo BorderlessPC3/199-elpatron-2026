@@ -1,13 +1,19 @@
-import * as admin from "firebase-admin";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { dispatchMessage, type OutboundMessage } from "./notificationService";
+import {
+  buildConfirmationBody,
+  buildOverdueBody,
+  buildReminderBody,
+} from "./whatsappTemplates";
+
 export {
-  createPixChargeFunction as createPixCharge,
-  handleAsaasWebhook,
-} from "./asaasWebhook";
+  sendWhatsappReminder,
+  sendWhatsappOverdue,
+  sendWhatsappConfirmation,
+} from "./whatsappCallables";
 
 initializeApp();
 const db = getFirestore();
@@ -36,13 +42,6 @@ function ymd(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-function formatBrl(n: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(n);
 }
 
 function normalizePhone(raw: string): string {
@@ -92,9 +91,12 @@ export async function sendPaymentReminder(
   installment: Installment,
   phone: string,
 ): Promise<void> {
-  const body = `Lembrete El Patrón: Olá ${data.clientName ?? "cliente"}, a parcela de ${formatBrl(
+  const body = buildReminderBody(
+    data.clientName ?? "cliente",
     installment.amount,
-  )} vence amanhã (${installment.dueDate}). Emprestimo #${loanId.slice(0, 8)}.`;
+    installment.dueDate,
+    loanId.slice(0, 8),
+  );
   const msg: OutboundMessage = {
     userId,
     loanId,
@@ -114,9 +116,12 @@ export async function sendOverdueNotification(
   installment: Installment,
   phone: string,
 ): Promise<void> {
-  const body = `Aviso El Patrón: ${data.clientName ?? "Cliente"}, parcela de ${formatBrl(
+  const body = buildOverdueBody(
+    data.clientName ?? "Cliente",
     installment.amount,
-  )} com vencimento em ${installment.dueDate} está em atraso. Empréstimo #${loanId.slice(0, 8)}.`;
+    installment.dueDate,
+    loanId.slice(0, 8),
+  );
   const msg: OutboundMessage = {
     userId,
     loanId,
@@ -135,9 +140,11 @@ export async function sendPaymentConfirmation(
   installment: Installment,
   phone: string,
 ): Promise<void> {
-  const body = `El Patrón: Pagamento confirmado! ${data.clientName ?? "Cliente"}, parcela de ${formatBrl(
+  const body = buildConfirmationBody(
+    data.clientName ?? "Cliente",
     installment.amount,
-  )} (${installment.dueDate}) recebida. Obrigado.`;
+    installment.dueDate,
+  );
   const msg: OutboundMessage = {
     userId,
     loanId,

@@ -470,6 +470,124 @@
   margin: 4px 0 12px;
 }
 
+.installments-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+  color: var(--color-text);
+}
+
+.installments-modal-title svg {
+  color: var(--color-primary);
+}
+
+.installments-status-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.installments-status-line svg {
+  margin-top: 2px;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.installments-manage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
+.installment-manage-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+}
+
+.installment-manage-row.is-paid {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.installment-manage-row.is-pending {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.installment-manage-row-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.installment-row-status-icon {
+  flex-shrink: 0;
+}
+
+.installment-manage-row.is-paid .installment-row-status-icon {
+  color: #059669;
+}
+
+.installment-manage-row.is-pending .installment-row-status-icon {
+  color: #e11d48;
+}
+
+.btn-installment-confirmed {
+  min-width: 128px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #6ee7b7;
+  background: #d1fae5;
+  color: #047857;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: default;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.btn-installment-pending {
+  min-width: 128px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-installment-pending:hover:not(:disabled) {
+  background: var(--color-background);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-installment-pending:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .next-receive-cell {
   display: inline-flex;
   align-items: center;

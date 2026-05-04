@@ -113,16 +113,29 @@ function ClientsPage() {
     return map;
   }, [payments]);
 
-  const uniqueClients = useMemo(
-    () => [...new Set(clients.map((client) => client.name))].sort(),
-    [clients],
-  );
-
   const generateSuggestions = (term: string) => {
     if (!term.trim()) return [];
-    return uniqueClients
-      .filter((client) => client.toLowerCase().includes(term.toLowerCase()))
-      .slice(0, 5);
+    const t = term.toLowerCase();
+    const digits = term.replace(/\D/g, "");
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const c of clients) {
+      if (out.length >= 5) break;
+      const nameMatch = c.name.toLowerCase().includes(t);
+      const companyMatch = c.company.toLowerCase().includes(t);
+      const phoneDigits = c.phone.replace(/\D/g, "");
+      const phoneDigitsMatch =
+        digits.length > 0 && phoneDigits.includes(digits);
+      const phoneTextMatch = c.phone.toLowerCase().includes(t);
+      if (
+        (nameMatch || companyMatch || phoneDigitsMatch || phoneTextMatch) &&
+        !seen.has(c.name)
+      ) {
+        seen.add(c.name);
+        out.push(c.name);
+      }
+    }
+    return out;
   };
 
   const getRevenueRange = (revenue: number) => {
@@ -179,11 +192,16 @@ function ClientsPage() {
   }, [filterOptions.sortBy, filterOptions.sortOrder, financialByClient]);
 
   const filteredClients = useMemo(() => {
+    const q = searchTerm.toLowerCase().trim();
+    const qDigits = searchTerm.replace(/\D/g, "");
     const result = clients.filter((client) => {
+      const phoneDigits = client.phone.replace(/\D/g, "");
       const matchesSearch =
-        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.company.toLowerCase().includes(searchTerm.toLowerCase());
+        !q ||
+        client.name.toLowerCase().includes(q) ||
+        client.company.toLowerCase().includes(q) ||
+        client.phone.toLowerCase().includes(q) ||
+        (qDigits.length > 0 && phoneDigits.includes(qDigits));
 
       const matchesStatus =
         filterOptions.status === "all" ||
@@ -509,7 +527,7 @@ function ClientsPage() {
           </span>
           <input
             type="text"
-            placeholder="Buscar clientes..."
+            placeholder="Buscar por nome, empresa ou contato..."
             value={searchTerm}
             onChange={handleSearchChange}
             onFocus={() => {
@@ -546,7 +564,6 @@ function ClientsPage() {
           >
             <FontAwesomeIcon icon={faFilter} />
             Filtros Avançados
-            {showAdvancedFilters ? " ↑" : " ↓"}
           </button>
 
           {showAdvancedFilters && (

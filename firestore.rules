@@ -48,14 +48,19 @@ service cloud.firestore {
     }
 
     function userPrefsKeys() {
-      return ["autoNotifications", "defaultWhatsappNumber"];
+      return [
+        "autoNotifications",
+        "defaultWhatsappNumber",
+        "notificationsWhatsappNumber",
+      ];
     }
 
     function validUserPreferences() {
       let d = request.resource.data;
       return d.keys().hasOnly(userPrefsKeys())
         && d.autoNotifications is bool
-        && (!("defaultWhatsappNumber" in d) || d.defaultWhatsappNumber is string);
+        && (!("defaultWhatsappNumber" in d) || d.defaultWhatsappNumber is string)
+        && (!("notificationsWhatsappNumber" in d) || d.notificationsWhatsappNumber is string);
     }
 
     function settingsTopKeys() {
