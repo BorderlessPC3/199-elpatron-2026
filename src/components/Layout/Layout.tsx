@@ -100,8 +100,11 @@ function Layout({ children }: LayoutProps) {
             {!isCollapsed && <span className="logo-wordmark">EL PATRON</span>}
           </div>
           <button
+            type="button"
             className="collapse-btn"
             onClick={() => setIsCollapsed(!isCollapsed)}
+            aria-expanded={!isCollapsed}
+            aria-label={isCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
           >
             <FontAwesomeIcon icon={isCollapsed ? faChevronRight : faChevronLeft} />
           </button>
@@ -112,11 +115,12 @@ function Layout({ children }: LayoutProps) {
             {menuItems.map((item) => (
               <li key={item.id}>
                 <button
+                  type="button"
                   className={`nav-item ${
                     location.pathname === item.path ? "active" : ""
                   }`}
                   onClick={() => handleMenuClick(item.path)}
-                  title={isCollapsed ? item.label : ""}
+                  title={isCollapsed ? item.label : undefined}
                 >
                   <span className="nav-icon">
                     <FontAwesomeIcon icon={item.icon} />
@@ -132,9 +136,11 @@ function Layout({ children }: LayoutProps) {
 
         <div className="sidebar-footer">
           <button
+            type="button"
             className="logout-btn"
             onClick={handleLogout}
-            title={isCollapsed ? "Logout" : ""}
+            title={isCollapsed ? "Sair da conta" : undefined}
+            aria-label="Sair da conta"
           >
             <span className="nav-icon">
               <FontAwesomeIcon icon={faPowerOff} />

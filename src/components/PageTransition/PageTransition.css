@@ -1,5 +1,6 @@
 .page-transition {
   width: 100%;
+  min-width: 0;
   position: relative;
   opacity: 1;
   transform: translateX(0);
